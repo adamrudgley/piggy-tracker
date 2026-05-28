@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piggy Tracker 🐷</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<!-- Firebase config is set directly in the module script below -->
+
+<style>
+:root {
+  --bg: #0f0e0c;
+  --surface: #1a1916;
+  --surface2: #242320;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #f0ece4;
+  --text2: #8a8680;
+  --text3: #5a5652;
+  --accent: #e8956d;
+  --accent2: #d4814f;
+  --accent-dim: rgba(232,149,109,0.12);
+  --green: #6db88a;
+  --red: #c97272;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:0.5;}
+
+/* ── SETUP SCREEN ── */
+#setup-screen{position:fixed;inset:0;align-items:center;justify-content:center;z-index:200;padding:1.5rem;background:var(--bg);}
+#setup-screen.visible{display:flex;}
+.setup-card{background:var(--surface);border:0.5px solid var(--border2);border-radius:24px;padding:2.5rem 2rem;width:100%;max-width:440px;text-align:center;}
+.setup-card h2{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:.5rem;letter-spacing:-.3px;}
+.setup-card p{font-size:13px;color:var(--text2);margin-bottom:1.5rem;}
+.setup-card .fg{text-align:left;margin-bottom:.75rem;}
+.setup-card .fg label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px;}
+.setup-card .fg input{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:monospace;outline:none;transition:border-color .2s;}
+.setup-card .fg input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,149,109,0.1);}
+.setup-err{color:var(--red);font-size:12px;margin-bottom:.75rem;min-height:16px;}
+
+/* ── LOCK SCREEN ── */
+#lock{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:100;padding:1.5rem;background:var(--bg);}
+.lock-card{background:var(--surface);border:0.5px solid var(--border2);border-radius:24px;padding:3rem 2.5rem 2.5rem;width:100%;max-width:400px;text-align:center;}
+.pig-icon{font-size:52px;line-height:1;margin-bottom:1rem;display:block;animation:wobble 3s ease-in-out infinite;}
+@keyframes wobble{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
+.lock-title{font-family:'DM Serif Display',serif;font-size:34px;letter-spacing:-.5px;margin-bottom:.3rem;}
+.lock-title span{color:var(--accent);font-style:italic;}
+.lock-sub{font-size:13px;color:var(--text2);margin-bottom:2rem;}
+.pin-row{display:flex;gap:12px;justify-content:center;margin-bottom:2rem;}
+.pin-d{width:52px;height:58px;background:var(--surface2);border:0.5px solid var(--border2);border-radius:10px;font-size:22px;text-align:center;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-text-security:disc;}
+.pin-d:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,149,109,0.18);}
+.pin-err{color:var(--red);font-size:13px;min-height:18px;margin:-1.25rem 0 1.25rem;}
+.btn-primary{background:var(--accent);color:#1a0d05;border:none;border-radius:var(--radius-sm);padding:13px 28px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;width:100%;transition:background .2s,transform .1s;}
+.btn-primary:hover{background:var(--accent2);}
+.btn-primary:active{transform:scale(.98);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.lock-hint{margin-top:1.25rem;font-size:12px;color:var(--text3);border-top:0.5px solid var(--border);padding-top:1.25rem;}
+
+/* ── APP ── */
+#app{display:none;position:relative;z-index:1;}
+.topbar{border-bottom:0.5px solid var(--border);padding:.9rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(15,14,12,0.92);backdrop-filter:blur(12px);z-index:10;}
+.topbar-title{font-family:'DM Serif Display',serif;font-size:21px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px;}
+.topbar-title span{color:var(--accent);font-style:italic;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.sync-badge{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.sync-dot.ok{background:var(--green);}
+.sync-dot.busy{background:var(--accent);animation:pulse .8s ease-in-out infinite;}
+.sync-dot.err{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.btn-ghost{background:transparent;border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:color .2s;}
+.btn-ghost:hover{color:var(--text);}
+
+.main{max-width:880px;margin:0 auto;padding:2rem 1.5rem 4rem;}
+
+.info-banner{background:var(--accent-dim);border:0.5px solid rgba(232,149,109,.2);border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:13px;color:var(--accent);margin-bottom:1.5rem;display:flex;gap:8px;align-items:flex-start;}
+
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:2rem;}
+.sc{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.25rem 1rem;position:relative;overflow:hidden;}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:.3;}
+.sc.hi::before{opacity:1;}
+.sc-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;}
+.sc-val{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-.5px;line-height:1;}
+.sc-sub{font-size:12px;margin-top:4px;color:var(--text3);}
+.sc-sub.pos{color:var(--green);}
+.sc-sub.neg{color:var(--red);}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;}
+@media(max-width:650px){
+  .two-col{grid-template-columns:1fr;}
+  .topbar{padding:.9rem 1rem;}
+  .main{padding:1.25rem 1rem 4rem;}
+  .form-row{grid-template-columns:1fr;}
+  .form-full,.section-div{grid-column:auto;}
+}
+
+.panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;}
+.panel-title{font-family:'DM Serif Display',serif;font-size:18px;letter-spacing:-.3px;margin-bottom:1.25rem;}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-full{grid-column:1/-1;}
+.section-div{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:.75rem 0 .25rem;padding-top:.75rem;border-top:0.5px solid var(--border);grid-column:1/-1;}
+.fg{margin-bottom:10px;}
+.fg label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:5px;}
+.fg input{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.fg input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,149,109,.1);}
+
+.chart-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:1rem;}
+.ct{background:transparent;border:0.5px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.ct.active{background:var(--accent-dim);border-color:rgba(232,149,109,.35);color:var(--accent);}
+.chart-wrap{height:200px;position:relative;}
+
+.log-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);border-bottom:0.5px solid var(--border);font-weight:400;white-space:nowrap;}
+td{padding:10px 10px;border-bottom:0.5px solid var(--border);color:var(--text2);white-space:nowrap;}
+td:first-child{color:var(--text);font-weight:500;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.del{background:none;border:none;cursor:pointer;color:var(--text3);padding:2px 6px;border-radius:4px;font-size:18px;line-height:1;transition:color .2s,background .2s;}
+.del:hover{color:var(--red);background:rgba(201,114,114,.1);}
+.empty{text-align:center;padding:3rem 1rem;color:var(--text3);font-size:14px;}
+
+.settings-panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;}
+details summary{font-size:13px;color:var(--text3);cursor:pointer;list-style:none;}
+details summary:hover{color:var(--text2);}
+.change-pin-form{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:.75rem;align-items:end;}
+.change-pin-form .fg{margin:0;}
+.btn-sm{background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 14px;font-size:13px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;transition:border-color .2s,color .2s;white-space:nowrap;}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#0a1f12;padding:10px 22px;border-radius:30px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:300;gap:1rem;}
+.spinner{width:36px;height:36px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-overlay p{font-size:14px;color:var(--text2);}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading" class="loading-overlay">
+  <div class="spinner"></div>
+  <p>Connecting to Firebase…</p>
+</div>
+
+<!-- SETUP (shown if Firebase config not filled in) -->
+<div id="setup-screen" style="display:none;">
+  <div class="setup-card">
+    <span style="font-size:42px;display:block;margin-bottom:1rem;">🐷</span>
+    <h2>Firebase config missing</h2>
+    <p>Open <code>piggy-tracker.html</code> in a text editor and replace the <code>REPLACE_*</code> placeholders at the top of the file with your Firebase project config. Follow the setup guide below.</p>
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:1rem;text-align:left;font-size:12px;color:var(--text2);font-family:monospace;line-height:1.8;margin-top:.5rem;">
+      1. Go to <strong style="color:var(--text);">console.firebase.google.com</strong><br>
+      2. Create a project → Add a web app<br>
+      3. Copy the config object into this file<br>
+      4. Enable Firestore → Start in test mode<br>
+      5. Reload this page
+    </div>
+  </div>
+</div>
+
+<!-- LOCK -->
+<div id="lock">
+  <div class="lock-card">
+    <span class="pig-icon">🐷</span>
+    <h1 class="lock-title">Piggy <span>Tracker</span></h1>
+    <p class="lock-sub" id="lock-sub">Enter your PIN to continue</p>
+    <div class="pin-row">
+      <input class="pin-d" type="password" maxlength="1" inputmode="numeric" autocomplete="off">
+      <input class="pin-d" type="password" maxlength="1" inputmode="numeric" autocomplete="off">
+      <input class="pin-d" type="password" maxlength="1" inputmode="numeric" autocomplete="off">
+      <input class="pin-d" type="password" maxlength="1" inputmode="numeric" autocomplete="off">
+    </div>
+    <div class="pin-err" id="pin-err"></div>
+    <button class="btn-primary" id="unlock-btn" onclick="checkPin()">Unlock →</button>
+    <div id="new-hint" class="lock-hint" style="display:none;">
+      First time? Enter any 4-digit PIN to create your tracker.
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-title">🐷 Piggy <span>Tracker</span></div>
+    <div class="topbar-right">
+      <div class="sync-badge">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-lbl">—</span>
+      </div>
+      <button class="btn-ghost" onclick="lock()">🔒 Lock</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <div id="share-banner" class="info-banner" style="display:none;">
+      🐷 <span>Share this file + your PIN with whoever you're tracking. Any device with both can log and view the same data in real time.</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="sc hi"><div class="sc-lbl">Current weight</div><div class="sc-val" id="s-cur">—</div><div class="sc-sub" id="s-delta"></div></div>
+      <div class="sc"><div class="sc-lbl">Starting weight</div><div class="sc-val" id="s-start">—</div></div>
+      <div class="sc"><div class="sc-lbl">Total change</div><div class="sc-val" id="s-total">—</div></div>
+      <div class="sc"><div class="sc-lbl">Entries logged</div><div class="sc-val" id="s-count">0</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Log entry</div>
+        <div class="form-row">
+          <div class="fg"><label>Date</label><input type="date" id="inp-date"></div>
+          <div class="fg"><label>Weight (lbs)</label><input type="number" id="inp-weight" placeholder="145.5" step="0.1" min="0"></div>
+          <div class="section-div">Measurements — inches (optional)</div>
+          <div class="fg"><label>Chest</label><input type="number" id="inp-chest" placeholder="36.0" step="0.25" min="0"></div>
+          <div class="fg"><label>Waist</label><input type="number" id="inp-waist" placeholder="30.0" step="0.25" min="0"></div>
+          <div class="fg"><label>Hips</label><input type="number" id="inp-hips" placeholder="38.0" step="0.25" min="0"></div>
+          <div class="fg"><label>Thigh</label><input type="number" id="inp-thigh" placeholder="22.0" step="0.25" min="0"></div>
+          <div class="fg"><label>Upper arm</label><input type="number" id="inp-arm" placeholder="13.0" step="0.25" min="0"></div>
+          <div class="fg"><label>Calf</label><input type="number" id="inp-calf" placeholder="15.0" step="0.25" min="0"></div>
+          <div class="fg form-full"><label>Notes</label><input type="text" id="inp-notes" placeholder="Optional notes…"></div>
+        </div>
+        <button class="btn-primary" id="save-btn" onclick="saveEntry()" style="margin-top:.5rem;">Save entry</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Progress</div>
+        <div class="chart-tabs">
+          <button class="ct active" onclick="switchChart('weight',this)">Weight</button>
+          <button class="ct" onclick="switchChart('chest',this)">Chest</button>
+          <button class="ct" onclick="switchChart('waist',this)">Waist</button>
+          <button class="ct" onclick="switchChart('hips',this)">Hips</button>
+          <button class="ct" onclick="switchChart('arm',this)">Arm</button>
+        </div>
+        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1.5rem;">
+      <div class="panel-title">History</div>
+      <div class="log-wrap" id="log-area"><div class="empty">No entries yet.</div></div>
+    </div>
+
+    <div class="settings-panel">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;">⚙️ Settings</div>
+      <details>
+        <summary>Change PIN</summary>
+        <div class="change-pin-form">
+          <div class="fg"><label>Current PIN</label><input type="password" id="old-pin" maxlength="4" inputmode="numeric"></div>
+          <div class="fg"><label>New PIN (4 digits)</label><input type="password" id="new-pin" maxlength="4" inputmode="numeric"></div>
+          <button class="btn-sm" onclick="changePin()">Update</button>
+        </div>
+        <div id="pin-chg-msg" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK (modular v9 compat) -->
+<script type="module">
+import { initializeApp }           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteField, onSnapshot }
+                                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyC_DsvOmOs4FImj2iGRpAWgIGCsnbSgXFg",
+    authDomain:        "piggy-tracker-4d2a3.firebaseapp.com",
+    projectId:         "piggy-tracker-4d2a3",
+    storageBucket:     "piggy-tracker-4d2a3.firebasestorage.app",
+    messagingSenderId: "781352943965",
+    appId:             "1:781352943965:web:29b58c14a2516a715868b4"
+  };
+const app = initializeApp(FIREBASE_CONFIG);
+const db  = getFirestore(app);
+
+// ── STATE ────────────────────────────────────────────────
+let entries    = [];
+let trackerPin = null;   // the active PIN (= Firestore doc ID)
+let chartInst  = null;
+let chartKey   = 'weight';
+let unsub      = null;   // Firestore onSnapshot unsubscriber
+
+// ── FIRESTORE HELPERS ────────────────────────────────────
+function trackerRef(pin) {
+  return doc(db, "trackers", pin);
+}
+
+async function loadTracker(pin) {
+  const snap = await getDoc(trackerRef(pin));
+  return snap.exists() ? snap.data() : null;
+}
+
+async function createTracker(pin) {
+  await setDoc(trackerRef(pin), { entries: [] });
+}
+
+async function pushEntries(pin, data) {
+  await setDoc(trackerRef(pin), { entries: data }, { merge: true });
+}
+
+// Real-time listener — keeps UI in sync across devices
+function subscribeTracker(pin) {
+  if (unsub) unsub();
+  unsub = onSnapshot(trackerRef(pin), (snap) => {
+    if (snap.exists()) {
+      entries = (snap.data().entries || []).sort((a,b)=>a.date.localeCompare(b.date));
+      renderAll();
+      setSync('ok','Synced');
+    }
+  }, (err) => {
+    console.error(err);
+    setSync('err','Sync error');
+  });
+}
+
+// ── PIN / LOCK ───────────────────────────────────────────
+async function checkPin() {
+  const digits = [...document.querySelectorAll('.pin-d')].map(d => d.value);
+  if (digits.some(d => d === '')) { showPinErr('Enter all 4 digits.'); return; }
+  const pin = digits.join('');
+
+  const btn = document.getElementById('unlock-btn');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  clearPinErr();
+  setSyncUI('busy', 'Connecting…');
+
+  try {
+    const existing = await loadTracker(pin);
+    if (existing === null) {
+      // New PIN — create tracker in Firestore
+      await createTracker(pin);
+      trackerPin = pin;
+      subscribeTracker(pin);
+      unlockApp(true);
+    } else {
+      // Existing PIN — load data
+      entries = (existing.entries || []).sort((a,b)=>a.date.localeCompare(b.date));
+      trackerPin = pin;
+      subscribeTracker(pin);
+      unlockApp(false);
+    }
+  } catch(e) {
+    console.error(e);
+    showPinErr('Connection failed. Check your internet or Firebase config.');
+    setSyncUI('err','Error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Unlock →';
+  }
+}
+window.checkPin = checkPin;
+
+function unlockApp(isNew) {
+  document.getElementById('lock').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  if (isNew) document.getElementById('share-banner').style.display = 'flex';
+  document.getElementById('inp-date').value = new Date().toISOString().slice(0,10);
+  setSyncUI('ok','Synced');
+  renderAll();
+}
+
+function lock() {
+  if (unsub) { unsub(); unsub = null; }
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('lock').style.display = 'flex';
+  document.querySelectorAll('.pin-d').forEach(d => d.value = '');
+  clearPinErr();
+  entries = []; trackerPin = null;
+}
+window.lock = lock;
+
+// ── SAVE ENTRY ───────────────────────────────────────────
+async function saveEntry() {
+  const weight = parseFloat(document.getElementById('inp-weight').value);
+  const date   = document.getElementById('inp-date').value;
+  if (!date)              { showToast('Pick a date first', true); return; }
+  if (!weight || weight<=0) { showToast('Enter a valid weight', true); return; }
+
+  const entry = {
+    id: Date.now(), date, weight,
+    chest: pf('inp-chest'), waist: pf('inp-waist'), hips: pf('inp-hips'),
+    thigh: pf('inp-thigh'), arm:   pf('inp-arm'),   calf: pf('inp-calf'),
+    notes: document.getElementById('inp-notes').value || ''
+  };
+
+  const updated = [...entries, entry].sort((a,b)=>a.date.localeCompare(b.date));
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  setSyncUI('busy','Saving…');
+
+  try {
+    await pushEntries(trackerPin, updated);
+    // onSnapshot will update entries + UI
+    clearInputs();
+    document.getElementById('share-banner').style.display = 'none';
+    showToast('Entry saved 🐷');
+  } catch(e) {
+    console.error(e);
+    showToast('Save failed — check connection', true);
+    setSyncUI('err','Save failed');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save entry';
+  }
+}
+window.saveEntry = saveEntry;
+
+// ── DELETE ───────────────────────────────────────────────
+async function deleteEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  const updated = entries.filter(e => e.id !== id);
+  setSyncUI('busy','Saving…');
+  try {
+    await pushEntries(trackerPin, updated);
+    showToast('Entry deleted');
+  } catch(e) {
+    showToast('Delete failed', true);
+    setSyncUI('err','Error');
+  }
+}
+window.deleteEntry = deleteEntry;
+
+// ── CHANGE PIN ───────────────────────────────────────────
+async function changePin() {
+  const oldP = document.getElementById('old-pin').value;
+  const newP = document.getElementById('new-pin').value;
+  const msg  = document.getElementById('pin-chg-msg');
+
+  if (oldP !== trackerPin)      { msg.style.color='var(--red)';   msg.textContent='Current PIN incorrect.';       return; }
+  if (!/^\d{4}$/.test(newP))   { msg.style.color='var(--red)';   msg.textContent='New PIN must be 4 digits.';    return; }
+  if (oldP === newP)            { msg.style.color='var(--red)';   msg.textContent='New PIN must differ.';          return; }
+
+  setSyncUI('busy','Updating PIN…');
+  try {
+    // Copy data to new PIN document
+    await setDoc(trackerRef(newP), { entries });
+    // Remove old doc (best-effort)
+    await setDoc(trackerRef(oldP), { _deleted: true });
+    // Re-subscribe to new doc
+    trackerPin = newP;
+    subscribeTracker(newP);
+    document.getElementById('old-pin').value = '';
+    document.getElementById('new-pin').value = '';
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'PIN updated! Share the new PIN with your tracker buddy.';
+    setSyncUI('ok','Synced');
+    setTimeout(() => msg.textContent = '', 4000);
+  } catch(e) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Failed — try again.';
+    setSyncUI('err','Error');
+  }
+}
+window.changePin = changePin;
+
+// ── RENDER ───────────────────────────────────────────────
+function renderAll() { renderStats(); renderChart(chartKey); renderLog(); }
+
+function renderStats() {
+  const ws  = entries.map(e => e.weight);
+  const cur = ws[ws.length-1];
+  const sta = ws[0];
+  sv('s-cur',   cur ? cur.toFixed(1)+' lbs' : '—');
+  sv('s-start', sta ? sta.toFixed(1)+' lbs' : '—');
+  sv('s-count', entries.length);
+  if (cur && sta) {
+    const d = cur - sta;
+    sv('s-total', (d>=0?'+':'')+d.toFixed(1)+' lbs');
+    if (entries.length >= 2) {
+      const prev = entries[entries.length-2].weight;
+      const dd   = cur - prev;
+      const el   = document.getElementById('s-delta');
+      el.textContent = (dd>=0?'▲ +':'▼ ')+Math.abs(dd).toFixed(1)+' from last';
+      el.className   = 'sc-sub '+(dd>=0?'pos':'neg');
+    }
+  } else { sv('s-total','—'); }
+}
+
+function sv(id,v) { const el=document.getElementById(id); if(el) el.textContent=v; }
+
+const chartLabels = { weight:'Weight (lbs)', chest:'Chest (in)', waist:'Waist (in)', hips:'Hips (in)', arm:'Upper arm (in)' };
+
+function switchChart(key, btn) {
+  chartKey = key;
+  document.querySelectorAll('.ct').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChart(key);
+}
+window.switchChart = switchChart;
+
+function renderChart(key) {
+  const valid  = entries.filter(e => e[key] != null);
+  const canvas = document.getElementById('chart');
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  const ctx    = canvas.getContext('2d');
+  if (!valid.length) {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = 'rgba(140,134,128,0.4)';
+    ctx.font      = '13px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data for this metric yet', canvas.width/2, 100);
+    return;
+  }
+  chartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels:   valid.map(e => fd(e.date)),
+      datasets: [{
+        label: chartLabels[key]||key, data: valid.map(e=>e[key]),
+        borderColor:'#e8956d', backgroundColor:'rgba(232,149,109,0.07)',
+        tension:0.35, fill:true,
+        pointBackgroundColor:'#e8956d', pointBorderColor:'#0f0e0c',
+        pointBorderWidth:2, pointRadius:4, pointHoverRadius:6
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#5a5652', font:{ size:11, family:'DM Sans' } } },
+        y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#5a5652', font:{ size:11, family:'DM Sans' } } }
+      }
+    }
+  });
+}
+
+function renderLog() {
+  const area = document.getElementById('log-area');
+  if (!entries.length) { area.innerHTML='<div class="empty">No entries yet. Log your first one! 🐷</div>'; return; }
+  const rows = [...entries].reverse().map(e=>`
+    <tr>
+      <td>${fd(e.date)}</td>
+      <td>${e.weight.toFixed(1)}</td>
+      <td>${e.chest!=null?e.chest.toFixed(2):'—'}</td>
+      <td>${e.waist!=null?e.waist.toFixed(2):'—'}</td>
+      <td>${e.hips!=null?e.hips.toFixed(2):'—'}</td>
+      <td>${e.arm!=null?e.arm.toFixed(2):'—'}</td>
+      <td>${e.thigh!=null?e.thigh.toFixed(2):'—'}</td>
+      <td>${e.calf!=null?e.calf.toFixed(2):'—'}</td>
+      <td style="color:var(--text3);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${e.notes||''}</td>
+      <td><button class="del" onclick="deleteEntry(${e.id})" title="Delete">×</button></td>
+    </tr>`).join('');
+  area.innerHTML=`<table>
+    <thead><tr><th>Date</th><th>Weight</th><th>Chest</th><th>Waist</th><th>Hips</th><th>Arm</th><th>Thigh</th><th>Calf</th><th>Notes</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── UTILS ────────────────────────────────────────────────
+function pf(id) { const v=parseFloat(document.getElementById(id).value); return isNaN(v)?null:v; }
+function fd(d)  { if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y.slice(2)}`; }
+function clearInputs() {
+  ['weight','chest','waist','hips','thigh','arm','calf','notes'].forEach(k=>{
+    const el=document.getElementById('inp-'+k); if(el) el.value='';
+  });
+}
+function showPinErr(msg) { document.getElementById('pin-err').textContent=msg; }
+function clearPinErr()   { document.getElementById('pin-err').textContent=''; }
+function showToast(msg,err) {
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.background=err?'var(--red)':'var(--green)';
+  t.style.color=err?'#1a0505':'#0a1f12';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+function setSyncUI(state,label) {
+  const dot=document.getElementById('sync-dot');
+  const lbl=document.getElementById('sync-lbl');
+  if(dot){ dot.className='sync-dot '+state; }
+  if(lbl) lbl.textContent=label||'';
+}
+function setSync(state,label){ setSyncUI(state,label); }
+
+// ── INIT ─────────────────────────────────────────────────
+document.getElementById('loading').style.display = 'none';
+document.getElementById('lock').style.display    = 'flex';
+
+// Check if this looks like a first-time open (no stored usage hint)
+// Show "new tracker" hint on lock screen
+document.getElementById('new-hint').style.display = 'block';
+document.getElementById('lock-sub').textContent   = 'Enter your PIN to access';
+
+// Wire up PIN input keyboard navigation
+const dots = [...document.querySelectorAll('.pin-d')];
+dots.forEach((inp,i) => {
+  inp.addEventListener('input', () => { if(inp.value.length===1 && i<dots.length-1) dots[i+1].focus(); });
+  inp.addEventListener('keydown', e => {
+    if(e.key==='Backspace' && inp.value==='' && i>0) dots[i-1].focus();
+    if(e.key==='Enter') checkPin();
+  });
+});
+dots[0].focus();
+
+</script>
+</body>
+</html>
