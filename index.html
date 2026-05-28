@@ -240,6 +240,8 @@ details summary:hover{color:var(--text2);}
           <button class="ct" onclick="switchChart('waist',this)">Waist</button>
           <button class="ct" onclick="switchChart('hips',this)">Hips</button>
           <button class="ct" onclick="switchChart('arm',this)">Arm</button>
+          <button class="ct" onclick="switchChart('thigh',this)">Thigh</button>
+          <button class="ct" onclick="switchChart('calf',this)">Calf</button>
         </div>
         <div class="chart-wrap"><canvas id="chart"></canvas></div>
       </div>
@@ -489,7 +491,7 @@ function renderStats() {
 
 function sv(id,v) { const el=document.getElementById(id); if(el) el.textContent=v; }
 
-const chartLabels = { weight:'Weight (lbs)', chest:'Chest (in)', waist:'Waist (in)', hips:'Hips (in)', arm:'Upper arm (in)' };
+const chartLabels = { weight:'Weight (lbs)', chest:'Chest (in)', waist:'Waist (in)', hips:'Hips (in)', arm:'Upper arm (in)', thigh:'Thigh (in)', calf:'Calf (in)' };
 
 function switchChart(key, btn) {
   chartKey = key;
