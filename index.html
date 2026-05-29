@@ -211,6 +211,7 @@ details summary:hover{color:var(--text2);}
       <div class="sc hi"><div class="sc-lbl">Current weight</div><div class="sc-val" id="s-cur">—</div><div class="sc-sub" id="s-delta"></div></div>
       <div class="sc"><div class="sc-lbl">Starting weight</div><div class="sc-val" id="s-start">—</div></div>
       <div class="sc"><div class="sc-lbl">Total change</div><div class="sc-val" id="s-total">—</div></div>
+      <div class="sc"><div class="sc-lbl">Current BMI</div><div class="sc-val" id="s-bmi">—</div><div class="sc-sub" id="s-bmi-cat"></div></div>
       <div class="sc"><div class="sc-lbl">Entries logged</div><div class="sc-val" id="s-count">0</div></div>
     </div>
 
@@ -220,6 +221,12 @@ details summary:hover{color:var(--text2);}
         <div class="form-row">
           <div class="fg"><label>Date</label><input type="date" id="inp-date"></div>
           <div class="fg"><label>Weight (lbs)</label><input type="number" id="inp-weight" placeholder="145.5" step="0.1" min="0"></div>
+          <div class="section-div">Height (saved for all future BMI calculations)</div>
+          <div class="fg form-full" style="display:flex;align-items:flex-end;gap:10px;">
+            <div style="flex:1;"><label>Height — feet</label><input type="number" id="inp-height-ft" placeholder="5" step="1" min="1" max="8"></div>
+            <div style="flex:1;"><label>inches</label><input type="number" id="inp-height-in" placeholder="8" step="1" min="0" max="11"></div>
+            <div style="flex:2;padding-bottom:2px;font-size:12px;color:var(--text3);line-height:1.4;" id="height-hint">Leave blank to use previously saved height</div>
+          </div>
           <div class="section-div">Measurements — inches (optional)</div>
           <div class="fg"><label>Chest</label><input type="number" id="inp-chest" placeholder="36.0" step="0.25" min="0"></div>
           <div class="fg"><label>Waist</label><input type="number" id="inp-waist" placeholder="30.0" step="0.25" min="0"></div>
@@ -236,6 +243,7 @@ details summary:hover{color:var(--text2);}
         <div class="panel-title">Progress</div>
         <div class="chart-tabs">
           <button class="ct active" onclick="switchChart('weight',this)">Weight</button>
+          <button class="ct" onclick="switchChart('bmi',this)">BMI</button>
           <button class="ct" onclick="switchChart('chest',this)">Chest</button>
           <button class="ct" onclick="switchChart('waist',this)">Waist</button>
           <button class="ct" onclick="switchChart('hips',this)">Hips</button>
@@ -289,6 +297,7 @@ const db  = getFirestore(app);
 
 // ── STATE ────────────────────────────────────────────────
 let entries    = [];
+let currentHeight = null; // stored height in inches
 let trackerPin = null;   // the active PIN (= Firestore doc ID)
 let chartInst  = null;
 let chartKey   = 'weight';
@@ -317,7 +326,10 @@ function subscribeTracker(pin) {
   if (unsub) unsub();
   unsub = onSnapshot(trackerRef(pin), (snap) => {
     if (snap.exists()) {
-      entries = (snap.data().entries || []).sort((a,b)=>a.date.localeCompare(b.date));
+      const data = snap.data();
+      entries = (data.entries || []).sort((a,b)=>a.date.localeCompare(b.date));
+      if (data.height) { currentHeight = data.height; }
+      updateHeightHint();
       renderAll();
       setSync('ok','Synced');
     }
@@ -349,6 +361,7 @@ async function checkPin() {
     } else {
       // Existing PIN — load data
       entries = (existing.entries || []).sort((a,b)=>a.date.localeCompare(b.date));
+      if (existing.height) { currentHeight = existing.height; }
       trackerPin = pin;
       subscribeTracker(pin);
       unlockApp(false);
@@ -369,6 +382,7 @@ function unlockApp(isNew) {
   if (isNew) document.getElementById('share-banner').style.display = 'flex';
   document.getElementById('inp-date').value = new Date().toISOString().slice(0,10);
   setSyncUI('ok','Synced');
+  updateHeightHint();
   renderAll();
 }
 
@@ -389,8 +403,23 @@ async function saveEntry() {
   if (!date)              { showToast('Pick a date first', true); return; }
   if (!weight || weight<=0) { showToast('Enter a valid weight', true); return; }
 
+  // Handle height — update stored height if new one entered
+  const newFt = parseInt(document.getElementById('inp-height-ft').value);
+  const newIn = parseInt(document.getElementById('inp-height-in').value);
+  let heightInches = currentHeight; // use stored height by default
+  if (!isNaN(newFt) && newFt > 0) {
+    heightInches = (newFt * 12) + (isNaN(newIn) ? 0 : newIn);
+    currentHeight = heightInches;
+    // Save height to Firestore
+    await setDoc(trackerRef(trackerPin), { height: heightInches }, { merge: true });
+  }
+
+  const bmi = heightInches ? calcBMI(weight, heightInches) : null;
+
   const entry = {
     id: Date.now(), date, weight,
+    bmi,
+    heightInches,
     chest: pf('inp-chest'), waist: pf('inp-waist'), hips: pf('inp-hips'),
     thigh: pf('inp-thigh'), arm:   pf('inp-arm'),   calf: pf('inp-calf'),
     notes: document.getElementById('inp-notes').value || ''
@@ -469,6 +498,36 @@ window.changePin = changePin;
 // ── RENDER ───────────────────────────────────────────────
 function renderAll() { renderStats(); renderChart(chartKey); renderLog(); }
 
+function calcBMI(weightLbs, heightInches) {
+  return (weightLbs / (heightInches * heightInches)) * 703;
+}
+
+function bmiCategory(bmi) {
+  if (bmi < 18.5) return { label: 'Underweight', pct: bmiPercentile(bmi) };
+  if (bmi < 25)   return { label: 'Healthy',     pct: bmiPercentile(bmi) };
+  if (bmi < 30)   return { label: 'Overweight',  pct: bmiPercentile(bmi) };
+  return               { label: 'Obese',          pct: bmiPercentile(bmi) };
+}
+
+// BMI percentile among US adults (CDC NHANES data approximation)
+// Mean BMI ~28.5, std dev ~6.5
+function bmiPercentile(bmi) {
+  // Use normal CDF approximation
+  const mean = 28.5, sd = 6.5;
+  const z = (bmi - mean) / sd;
+  const pct = normalCDF(z);
+  return Math.round(pct * 100);
+}
+
+function normalCDF(z) {
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.sqrt(2);
+  const t = 1/(1+p*x);
+  const y = 1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return 0.5*(1+sign*y);
+}
+
 function renderStats() {
   const ws  = entries.map(e => e.weight);
   const cur = ws[ws.length-1];
@@ -487,11 +546,28 @@ function renderStats() {
       el.className   = 'sc-sub '+(dd>=0?'pos':'neg');
     }
   } else { sv('s-total','—'); }
+
+  // BMI
+  const h = currentHeight || (entries.length > 0 && entries[entries.length-1].heightInches);
+  if (cur && h) {
+    const bmi = calcBMI(cur, h);
+    const cat = bmiCategory(bmi);
+    sv('s-bmi', bmi.toFixed(1));
+    const bmiEl = document.getElementById('s-bmi-cat');
+    if (bmiEl) {
+      bmiEl.textContent = cat.label + ' · heavier than ' + cat.pct + '%';
+      bmiEl.className = 'sc-sub';
+    }
+  } else {
+    sv('s-bmi', '—');
+    const bmiEl = document.getElementById('s-bmi-cat');
+    if (bmiEl) { bmiEl.textContent = 'enter height to calculate'; bmiEl.className = 'sc-sub'; }
+  }
 }
 
 function sv(id,v) { const el=document.getElementById(id); if(el) el.textContent=v; }
 
-const chartLabels = { weight:'Weight (lbs)', chest:'Chest (in)', waist:'Waist (in)', hips:'Hips (in)', arm:'Upper arm (in)', thigh:'Thigh (in)', calf:'Calf (in)' };
+const chartLabels = { weight:'Weight (lbs)', bmi:'BMI', chest:'Chest (in)', waist:'Waist (in)', hips:'Hips (in)', arm:'Upper arm (in)', thigh:'Thigh (in)', calf:'Calf (in)' };
 
 function switchChart(key, btn) {
   chartKey = key;
@@ -544,6 +620,7 @@ function renderLog() {
     <tr>
       <td>${fd(e.date)}</td>
       <td>${e.weight.toFixed(1)}</td>
+      <td>${e.bmi!=null?e.bmi.toFixed(1):'—'}</td>
       <td>${e.chest!=null?e.chest.toFixed(2):'—'}</td>
       <td>${e.waist!=null?e.waist.toFixed(2):'—'}</td>
       <td>${e.hips!=null?e.hips.toFixed(2):'—'}</td>
@@ -554,7 +631,7 @@ function renderLog() {
       <td><button class="del" onclick="deleteEntry(${e.id})" title="Delete">×</button></td>
     </tr>`).join('');
   area.innerHTML=`<table>
-    <thead><tr><th>Date</th><th>Weight</th><th>Chest</th><th>Waist</th><th>Hips</th><th>Arm</th><th>Thigh</th><th>Calf</th><th>Notes</th><th></th></tr></thead>
+    <thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>Chest</th><th>Waist</th><th>Hips</th><th>Arm</th><th>Thigh</th><th>Calf</th><th>Notes</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
@@ -566,6 +643,24 @@ function clearInputs() {
   ['weight','chest','waist','hips','thigh','arm','calf','notes'].forEach(k=>{
     const el=document.getElementById('inp-'+k); if(el) el.value='';
   });
+  document.getElementById('inp-height-ft').value = '';
+  document.getElementById('inp-height-in').value = '';
+  // Update hint to show current stored height
+  updateHeightHint();
+}
+
+function updateHeightHint() {
+  const hint = document.getElementById('height-hint');
+  if (!hint) return;
+  if (currentHeight) {
+    const ft = Math.floor(currentHeight / 12);
+    const inches = currentHeight % 12;
+    hint.textContent = 'Saved height: ' + ft + 'ft ' + inches + 'in — leave blank to keep using this';
+    hint.style.color = 'var(--green)';
+  } else {
+    hint.textContent = 'No height saved yet — enter one to enable BMI';
+    hint.style.color = 'var(--text3)';
+  }
 }
 function showPinErr(msg) { document.getElementById('pin-err').textContent=msg; }
 function clearPinErr()   { document.getElementById('pin-err').textContent=''; }
