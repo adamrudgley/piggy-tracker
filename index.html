@@ -269,6 +269,17 @@ details summary:hover{color:var(--text2);}
 
       <div class="settings-panel">
         <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;">⚙️ Settings</div>
+        <details style="margin-bottom:1rem;">
+          <summary>🔍 USDA Food Database API Key (for fast food search)</summary>
+          <div style="margin-top:.75rem;">
+            <div id="api-key-hint" style="font-size:12px;color:var(--text3);margin-bottom:.75rem;">No USDA key — using Open Food Facts (limited fast food data)</div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;">
+              <div class="fg" style="margin:0;"><label>Paste your data.gov API key</label><input type="password" id="usda-key-input" placeholder="Paste key here…" autocomplete="off"></div>
+              <button class="btn-sm" onclick="saveApiKey()">Save key</button>
+            </div>
+            <p style="font-size:11px;color:var(--text3);margin-top:.5rem;">Key is stored privately in Firebase — never in the app code. Get a free key at <strong style="color:var(--text2);">api.data.gov/signup</strong></p>
+          </div>
+        </details>
         <details>
           <summary>Change PIN</summary>
           <div class="change-pin-form">
@@ -299,6 +310,7 @@ details summary:hover{color:var(--text2);}
         <div class="panel">
           <div class="panel-title">Log food</div>
           <p class="search-hint">Search to auto-fill calories, or enter manually below</p>
+          <p id="search-source" style="font-size:11px;color:var(--text3);margin-bottom:.5rem;">Searching Open Food Facts database</p>
           <div class="search-wrap">
             <input type="text" id="food-search" placeholder="Search food (e.g. banana, chicken breast…)" autocomplete="off">
             <div class="search-results" id="search-results"></div>
@@ -367,6 +379,7 @@ const db  = getFirestore(app);
 let weightEntries = [];
 let foodEntries   = [];
 let currentHeight = null;
+let usdaApiKey    = null;
 let trackerPin    = null;
 let chartInst     = null;
 let foodChartInst = null;
@@ -386,7 +399,8 @@ async function saveAll() {
   await setDoc(tRef(trackerPin), {
     entries:     weightEntries,
     foodEntries: foodEntries,
-    height:      currentHeight || null
+    height:      currentHeight || null,
+    usdaApiKey:  usdaApiKey    || null
   }, { merge: true });
 }
 
@@ -397,7 +411,8 @@ function subscribeTracker(pin) {
       const d = snap.data();
       weightEntries = (d.entries      || []).sort((a,b)=>a.date.localeCompare(b.date));
       foodEntries   = (d.foodEntries  || []).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
-      if (d.height) currentHeight = d.height;
+      if (d.height)      currentHeight = d.height;
+      if (d.usdaApiKey)  { usdaApiKey = d.usdaApiKey; updateApiKeyHint(); }
       updateHeightHint();
       renderAll();
       setSyncUI('ok','Synced');
@@ -423,7 +438,8 @@ async function checkPin() {
     } else {
       weightEntries = (existing.entries     || []).sort((a,b)=>a.date.localeCompare(b.date));
       foodEntries   = (existing.foodEntries || []).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
-      if (existing.height) currentHeight = existing.height;
+      if (existing.height)     currentHeight = existing.height;
+      if (existing.usdaApiKey) { usdaApiKey = existing.usdaApiKey; }
       trackerPin = pin;
       subscribeTracker(pin);
       unlockApp(false);
@@ -446,6 +462,7 @@ function unlockApp(isNew) {
   document.getElementById('f-inp-date').value = today;
   setSyncUI('ok','Synced');
   updateHeightHint();
+  updateApiKeyHint();
   renderAll();
 }
 
@@ -507,25 +524,58 @@ async function deleteWeightEntry(id) {
 }
 window.deleteWeightEntry = deleteWeightEntry;
 
-// ── FOOD SEARCH (Open Food Facts API — free, no key) ──────
+// ── FOOD SEARCH ──────────────────────────────────────────
 async function searchFood(q) {
   if (!q || q.length < 2) { closeSearch(); return; }
   const res = document.getElementById('search-results');
   res.innerHTML = '<div class="search-loading">Searching…</div>';
   res.classList.add('open');
+  if (usdaApiKey) {
+    await searchUSDA(q, res);
+  } else {
+    await searchOpenFoodFacts(q, res);
+  }
+}
+
+async function searchUSDA(q, res) {
+  try {
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&dataType=Branded,Survey%20(FNDDS),SR%20Legacy&pageSize=12&api_key=${usdaApiKey}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('USDA ' + r.status);
+    const data = await r.json();
+    const foods = (data.foods||[]).filter(f => f.foodNutrients?.find(n=>n.nutrientName==='Energy'&&n.unitName==='KCAL'&&n.value>0));
+    if (!foods.length) { res.innerHTML='<div class="search-loading">No results found</div>'; return; }
+    res.innerHTML = foods.map(f => {
+      const calNut  = f.foodNutrients.find(n=>n.nutrientName==='Energy'&&n.unitName==='KCAL');
+      const calPer100 = Math.round(calNut.value);
+      const serving   = f.servingSize || 100;
+      const servUnit  = f.servingSizeUnit || 'g';
+      const displayCal = Math.round(calPer100 * serving / 100);
+      const name  = (f.description||'').slice(0,55);
+      const brand = f.brandOwner ? ` <span style="color:var(--text3);font-size:11px;">${f.brandOwner.slice(0,22)}</span>` : '';
+      const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div class="search-item" onclick="selectFood('${safeName}', ${displayCal})">
+        <span class="food-name">${name}${brand}</span>
+        <span class="food-cal">${displayCal} kcal / ${serving}${servUnit}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    res.innerHTML = '<div class="search-loading">Search failed — check API key in settings</div>';
+  }
+}
+
+async function searchOpenFoodFacts(q, res) {
   try {
     const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,nutriments`;
     const r = await fetch(url);
     const data = await r.json();
-    const products = (data.products||[]).filter(p => p.product_name && p.nutriments?.['energy-kcal_100g']);
-    if (!products.length) {
-      res.innerHTML = '<div class="search-loading">No results — enter calories manually</div>';
-      return;
-    }
+    const products = (data.products||[]).filter(p=>p.product_name&&p.nutriments?.['energy-kcal_100g']);
+    if (!products.length) { res.innerHTML='<div class="search-loading">No results — enter calories manually</div>'; return; }
     res.innerHTML = products.map(p => {
-      const cal = Math.round(p.nutriments['energy-kcal_100g']);
+      const cal  = Math.round(p.nutriments['energy-kcal_100g']);
       const name = p.product_name.slice(0,50);
-      return `<div class="search-item" onclick="selectFood('${name.replace(/'/g,"\\'")}', ${cal})">
+      const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div class="search-item" onclick="selectFood('${safeName}', ${cal})">
         <span class="food-name">${name}</span>
         <span class="food-cal">${cal} kcal/100g</span>
       </div>`;
@@ -853,6 +903,39 @@ function updateHeightHint() {
     hint.textContent='Enter height to enable BMI'; hint.style.color='var(--text3)';
   }
 }
+
+async function saveApiKey() {
+  const key = document.getElementById('usda-key-input').value.trim();
+  if (!key) { showToast('Enter your API key', true); return; }
+  usdaApiKey = key;
+  setSyncUI('busy','Saving…');
+  try {
+    await setDoc(tRef(trackerPin), { usdaApiKey: key }, { merge: true });
+    updateApiKeyHint();
+    showToast('API key saved 🔑');
+    setSyncUI('ok','Synced');
+    document.getElementById('usda-key-input').value='';
+  } catch(e) {
+    showToast('Save failed', true); setSyncUI('err','Error');
+  }
+}
+window.saveApiKey = saveApiKey;
+
+function updateApiKeyHint() {
+  const hint = document.getElementById('api-key-hint');
+  const src  = document.getElementById('search-source');
+  if (!hint) return;
+  if (usdaApiKey) {
+    hint.textContent = '✓ USDA API key saved — fast food search enabled';
+    hint.style.color = 'var(--green)';
+    if (src) src.textContent = 'Searching USDA branded foods database';
+  } else {
+    hint.textContent = 'No USDA key — using Open Food Facts (limited fast food data)';
+    hint.style.color = 'var(--text3)';
+    if (src) src.textContent = 'Searching Open Food Facts database';
+  }
+}
+window.updateApiKeyHint = updateApiKeyHint;
 
 async function changePin() {
   const oldP=document.getElementById('old-pin').value, newP=document.getElementById('new-pin').value;
