@@ -7,44 +7,20 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-
-<!-- Firebase config is set directly in the module script below -->
-
 <style>
-:root {
-  --bg: #0f0e0c;
-  --surface: #1a1916;
-  --surface2: #242320;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.13);
-  --text: #f0ece4;
-  --text2: #8a8680;
-  --text3: #5a5652;
-  --accent: #e8956d;
-  --accent2: #d4814f;
-  --accent-dim: rgba(232,149,109,0.12);
-  --green: #6db88a;
-  --red: #c97272;
-  --radius: 14px;
-  --radius-sm: 8px;
+:root{
+  --bg:#0f0e0c;--surface:#1a1916;--surface2:#242320;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f0ece4;--text2:#8a8680;--text3:#5a5652;
+  --accent:#e8956d;--accent2:#d4814f;--accent-dim:rgba(232,149,109,0.12);
+  --green:#6db88a;--green-dim:rgba(109,184,138,0.15);
+  --red:#c97272;--radius:14px;--radius-sm:8px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6;}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:0.5;}
 
-/* ── SETUP SCREEN ── */
-#setup-screen{position:fixed;inset:0;align-items:center;justify-content:center;z-index:200;padding:1.5rem;background:var(--bg);}
-#setup-screen.visible{display:flex;}
-.setup-card{background:var(--surface);border:0.5px solid var(--border2);border-radius:24px;padding:2.5rem 2rem;width:100%;max-width:440px;text-align:center;}
-.setup-card h2{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:.5rem;letter-spacing:-.3px;}
-.setup-card p{font-size:13px;color:var(--text2);margin-bottom:1.5rem;}
-.setup-card .fg{text-align:left;margin-bottom:.75rem;}
-.setup-card .fg label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px;}
-.setup-card .fg input{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:monospace;outline:none;transition:border-color .2s;}
-.setup-card .fg input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,149,109,0.1);}
-.setup-err{color:var(--red);font-size:12px;margin-bottom:.75rem;min-height:16px;}
-
-/* ── LOCK SCREEN ── */
+/* ── LOCK ── */
 #lock{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:100;padding:1.5rem;background:var(--bg);}
 .lock-card{background:var(--surface);border:0.5px solid var(--border2);border-radius:24px;padding:3rem 2.5rem 2.5rem;width:100%;max-width:400px;text-align:center;}
 .pig-icon{font-size:52px;line-height:1;margin-bottom:1rem;display:block;animation:wobble 3s ease-in-out infinite;}
@@ -62,11 +38,15 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
 .lock-hint{margin-top:1.25rem;font-size:12px;color:var(--text3);border-top:0.5px solid var(--border);padding-top:1.25rem;}
 
-/* ── APP ── */
+/* ── APP SHELL ── */
 #app{display:none;position:relative;z-index:1;}
 .topbar{border-bottom:0.5px solid var(--border);padding:.9rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(15,14,12,0.92);backdrop-filter:blur(12px);z-index:10;}
+.topbar-left{display:flex;align-items:center;gap:1.5rem;}
 .topbar-title{font-family:'DM Serif Display',serif;font-size:21px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px;}
 .topbar-title span{color:var(--accent);font-style:italic;}
+.tab-nav{display:flex;gap:2px;}
+.tab-nav-btn{background:transparent;border:none;padding:6px 14px;font-size:13px;color:var(--text3);cursor:pointer;font-family:'DM Sans',sans-serif;border-radius:20px;transition:all .2s;}
+.tab-nav-btn.active{background:var(--accent-dim);color:var(--accent);}
 .topbar-right{display:flex;align-items:center;gap:8px;}
 .sync-badge{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;}
 .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;}
@@ -77,32 +57,37 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .btn-ghost{background:transparent;border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:color .2s;}
 .btn-ghost:hover{color:var(--text);}
 
+/* ── TAB PANELS ── */
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
 .main{max-width:880px;margin:0 auto;padding:2rem 1.5rem 4rem;}
 
-.info-banner{background:var(--accent-dim);border:0.5px solid rgba(232,149,109,.2);border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:13px;color:var(--accent);margin-bottom:1.5rem;display:flex;gap:8px;align-items:flex-start;}
-
+/* ── STAT CARDS ── */
 .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:2rem;}
 .sc{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.25rem 1rem;position:relative;overflow:hidden;}
 .sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:.3;}
 .sc.hi::before{opacity:1;}
+.sc.green-hi::before{background:var(--green);opacity:1;}
 .sc-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;}
 .sc-val{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-.5px;line-height:1;}
 .sc-sub{font-size:12px;margin-top:4px;color:var(--text3);}
 .sc-sub.pos{color:var(--green);}
 .sc-sub.neg{color:var(--red);}
 
+/* ── PANELS ── */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;}
 @media(max-width:650px){
   .two-col{grid-template-columns:1fr;}
-  .topbar{padding:.9rem 1rem;}
+  .topbar{padding:.9rem 1rem;flex-wrap:wrap;gap:.5rem;}
   .main{padding:1.25rem 1rem 4rem;}
   .form-row{grid-template-columns:1fr;}
   .form-full,.section-div{grid-column:auto;}
 }
-
 .panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;}
+.panel-full{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;}
 .panel-title{font-family:'DM Serif Display',serif;font-size:18px;letter-spacing:-.3px;margin-bottom:1.25rem;}
 
+/* ── FORMS ── */
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .form-full{grid-column:1/-1;}
 .section-div{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:.75rem 0 .25rem;padding-top:.75rem;border-top:0.5px solid var(--border);grid-column:1/-1;}
@@ -111,11 +96,28 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .fg input{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
 .fg input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,149,109,.1);}
 
+/* ── FOOD SEARCH ── */
+.search-hint{font-size:12px;color:var(--text3);margin-bottom:.75rem;}
+.search-wrap{position:relative;margin-bottom:1rem;}
+.search-wrap input{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,149,109,.1);}
+.search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-sm);z-index:50;max-height:220px;overflow-y:auto;display:none;}
+.search-results.open{display:block;}
+.search-item{padding:10px 12px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid var(--border);}
+.search-item:last-child{border-bottom:none;}
+.search-item:hover{background:var(--surface2);}
+.search-item .food-name{color:var(--text);}
+.search-item .food-cal{color:var(--accent);font-size:12px;font-weight:500;}
+.search-loading{padding:12px;font-size:13px;color:var(--text3);text-align:center;}
+.food-form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;}
+
+/* ── CHART ── */
 .chart-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:1rem;}
 .ct{background:transparent;border:0.5px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
 .ct.active{background:var(--accent-dim);border-color:rgba(232,149,109,.35);color:var(--accent);}
 .chart-wrap{height:200px;position:relative;}
 
+/* ── LOG TABLE ── */
 .log-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);border-bottom:0.5px solid var(--border);font-weight:400;white-space:nowrap;}
@@ -127,6 +129,19 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .del:hover{color:var(--red);background:rgba(201,114,114,.1);}
 .empty{text-align:center;padding:3rem 1rem;color:var(--text3);font-size:14px;}
 
+/* ── FOOD DAY GROUP ── */
+.day-group{margin-bottom:1.25rem;}
+.day-header{display:flex;justify-content:space-between;align-items:center;padding:.5rem .75rem;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:.5rem;font-size:13px;}
+.day-header-date{font-weight:500;color:var(--text);}
+.day-header-cal{color:var(--accent);font-weight:500;}
+.day-header-cal.record{color:var(--green);}
+.food-entry-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem .75rem;font-size:13px;border-bottom:0.5px solid var(--border);}
+.food-entry-row:last-child{border-bottom:none;}
+.food-entry-name{color:var(--text2);}
+.food-entry-right{display:flex;align-items:center;gap:12px;}
+.food-entry-cal{color:var(--text);font-weight:500;}
+
+/* ── SETTINGS ── */
 .settings-panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;}
 details summary{font-size:13px;color:var(--text3);cursor:pointer;list-style:none;}
 details summary:hover{color:var(--text2);}
@@ -135,9 +150,14 @@ details summary:hover{color:var(--text2);}
 .btn-sm{background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 14px;font-size:13px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;transition:border-color .2s,color .2s;white-space:nowrap;}
 .btn-sm:hover{border-color:var(--accent);color:var(--accent);}
 
+/* ── INFO BANNER ── */
+.info-banner{background:var(--accent-dim);border:0.5px solid rgba(232,149,109,.2);border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:13px;color:var(--accent);margin-bottom:1.5rem;display:flex;gap:8px;align-items:flex-start;}
+
+/* ── TOAST ── */
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#0a1f12;padding:10px 22px;border-radius:30px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:999;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+/* ── LOADING ── */
 .loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:300;gap:1rem;}
 .spinner{width:36px;height:36px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -149,23 +169,7 @@ details summary:hover{color:var(--text2);}
 <!-- LOADING -->
 <div id="loading" class="loading-overlay">
   <div class="spinner"></div>
-  <p>Connecting to Firebase…</p>
-</div>
-
-<!-- SETUP (shown if Firebase config not filled in) -->
-<div id="setup-screen" style="display:none;">
-  <div class="setup-card">
-    <span style="font-size:42px;display:block;margin-bottom:1rem;">🐷</span>
-    <h2>Firebase config missing</h2>
-    <p>Open <code>piggy-tracker.html</code> in a text editor and replace the <code>REPLACE_*</code> placeholders at the top of the file with your Firebase project config. Follow the setup guide below.</p>
-    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:1rem;text-align:left;font-size:12px;color:var(--text2);font-family:monospace;line-height:1.8;margin-top:.5rem;">
-      1. Go to <strong style="color:var(--text);">console.firebase.google.com</strong><br>
-      2. Create a project → Add a web app<br>
-      3. Copy the config object into this file<br>
-      4. Enable Firestore → Start in test mode<br>
-      5. Reload this page
-    </div>
-  </div>
+  <p>Connecting…</p>
 </div>
 
 <!-- LOCK -->
@@ -182,524 +186,714 @@ details summary:hover{color:var(--text2);}
     </div>
     <div class="pin-err" id="pin-err"></div>
     <button class="btn-primary" id="unlock-btn" onclick="checkPin()">Unlock →</button>
-    <div id="new-hint" class="lock-hint" style="display:none;">
-      First time? Enter any 4-digit PIN to create your tracker.
-    </div>
+    <div id="new-hint" class="lock-hint" style="display:none;">First time? Enter any 4-digit PIN to create your tracker.</div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app">
   <div class="topbar">
-    <div class="topbar-title">🐷 Piggy <span>Tracker</span></div>
-    <div class="topbar-right">
-      <div class="sync-badge">
-        <div class="sync-dot" id="sync-dot"></div>
-        <span id="sync-lbl">—</span>
+    <div class="topbar-left">
+      <div class="topbar-title">🐷 Piggy <span>Tracker</span></div>
+      <div class="tab-nav">
+        <button class="tab-nav-btn active" onclick="switchTab('weight',this)">⚖️ Weight</button>
+        <button class="tab-nav-btn" onclick="switchTab('food',this)">🍽️ Food</button>
       </div>
+    </div>
+    <div class="topbar-right">
+      <div class="sync-badge"><div class="sync-dot" id="sync-dot"></div><span id="sync-lbl">—</span></div>
       <button class="btn-ghost" onclick="lock()">🔒 Lock</button>
     </div>
   </div>
 
-  <div class="main">
+  <!-- ══ WEIGHT TAB ══ -->
+  <div id="tab-weight" class="tab-panel active">
+    <div class="main">
 
-    <div id="share-banner" class="info-banner" style="display:none;">
-      🐷 <span>Share this file + your PIN with whoever you're tracking. Any device with both can log and view the same data in real time.</span>
-    </div>
+      <div id="share-banner" class="info-banner" style="display:none;">
+        🐷 <span>Share this file + your PIN with whoever you're tracking. Any device with both can log and view the same data in real time.</span>
+      </div>
 
-    <div class="stats-row">
-      <div class="sc hi"><div class="sc-lbl">Current weight</div><div class="sc-val" id="s-cur">—</div><div class="sc-sub" id="s-delta"></div></div>
-      <div class="sc"><div class="sc-lbl">Starting weight</div><div class="sc-val" id="s-start">—</div></div>
-      <div class="sc"><div class="sc-lbl">Total change</div><div class="sc-val" id="s-total">—</div></div>
-      <div class="sc"><div class="sc-lbl">Current BMI</div><div class="sc-val" id="s-bmi">—</div><div class="sc-sub" id="s-bmi-cat"></div></div>
-      <div class="sc"><div class="sc-lbl">Entries logged</div><div class="sc-val" id="s-count">0</div></div>
-    </div>
+      <div class="stats-row">
+        <div class="sc hi"><div class="sc-lbl">Current weight</div><div class="sc-val" id="s-cur">—</div><div class="sc-sub" id="s-delta"></div></div>
+        <div class="sc"><div class="sc-lbl">Starting weight</div><div class="sc-val" id="s-start">—</div></div>
+        <div class="sc"><div class="sc-lbl">Total change</div><div class="sc-val" id="s-total">—</div></div>
+        <div class="sc"><div class="sc-lbl">Current BMI</div><div class="sc-val" id="s-bmi">—</div><div class="sc-sub" id="s-bmi-cat"></div></div>
+        <div class="sc"><div class="sc-lbl">Entries logged</div><div class="sc-val" id="s-count">0</div></div>
+      </div>
 
-    <div class="two-col">
-      <div class="panel">
-        <div class="panel-title">Log entry</div>
-        <div class="form-row">
-          <div class="fg"><label>Date</label><input type="date" id="inp-date"></div>
-          <div class="fg"><label>Weight (lbs)</label><input type="number" id="inp-weight" placeholder="145.5" step="0.1" min="0"></div>
-          <div class="section-div">Height (saved for all future BMI calculations)</div>
-          <div class="fg form-full" style="display:flex;align-items:flex-end;gap:10px;">
-            <div style="flex:1;"><label>Height — feet</label><input type="number" id="inp-height-ft" placeholder="5" step="1" min="1" max="8"></div>
-            <div style="flex:1;"><label>inches</label><input type="number" id="inp-height-in" placeholder="8" step="1" min="0" max="11"></div>
-            <div style="flex:2;padding-bottom:2px;font-size:12px;color:var(--text3);line-height:1.4;" id="height-hint">Leave blank to use previously saved height</div>
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title">Log entry</div>
+          <div class="form-row">
+            <div class="fg"><label>Date</label><input type="date" id="inp-date"></div>
+            <div class="fg"><label>Weight (lbs)</label><input type="number" id="inp-weight" placeholder="145.5" step="0.1" min="0"></div>
+            <div class="section-div">Height (saved for all future BMI calculations)</div>
+            <div class="fg form-full" style="display:flex;align-items:flex-end;gap:10px;">
+              <div style="flex:1;"><label>Feet</label><input type="number" id="inp-height-ft" placeholder="5" step="1" min="1" max="8"></div>
+              <div style="flex:1;"><label>Inches</label><input type="number" id="inp-height-in" placeholder="8" step="1" min="0" max="11"></div>
+              <div style="flex:2;padding-bottom:2px;font-size:12px;color:var(--text3);line-height:1.4;" id="height-hint">Enter height to enable BMI</div>
+            </div>
+            <div class="section-div">Measurements — inches (optional)</div>
+            <div class="fg"><label>Chest</label><input type="number" id="inp-chest" placeholder="36.0" step="0.25" min="0"></div>
+            <div class="fg"><label>Waist</label><input type="number" id="inp-waist" placeholder="30.0" step="0.25" min="0"></div>
+            <div class="fg"><label>Hips</label><input type="number" id="inp-hips" placeholder="38.0" step="0.25" min="0"></div>
+            <div class="fg"><label>Thigh</label><input type="number" id="inp-thigh" placeholder="22.0" step="0.25" min="0"></div>
+            <div class="fg"><label>Upper arm</label><input type="number" id="inp-arm" placeholder="13.0" step="0.25" min="0"></div>
+            <div class="fg"><label>Calf</label><input type="number" id="inp-calf" placeholder="15.0" step="0.25" min="0"></div>
+            <div class="fg form-full"><label>Notes</label><input type="text" id="inp-notes" placeholder="Optional notes…"></div>
           </div>
-          <div class="section-div">Measurements — inches (optional)</div>
-          <div class="fg"><label>Chest</label><input type="number" id="inp-chest" placeholder="36.0" step="0.25" min="0"></div>
-          <div class="fg"><label>Waist</label><input type="number" id="inp-waist" placeholder="30.0" step="0.25" min="0"></div>
-          <div class="fg"><label>Hips</label><input type="number" id="inp-hips" placeholder="38.0" step="0.25" min="0"></div>
-          <div class="fg"><label>Thigh</label><input type="number" id="inp-thigh" placeholder="22.0" step="0.25" min="0"></div>
-          <div class="fg"><label>Upper arm</label><input type="number" id="inp-arm" placeholder="13.0" step="0.25" min="0"></div>
-          <div class="fg"><label>Calf</label><input type="number" id="inp-calf" placeholder="15.0" step="0.25" min="0"></div>
-          <div class="fg form-full"><label>Notes</label><input type="text" id="inp-notes" placeholder="Optional notes…"></div>
+          <button class="btn-primary" id="save-btn" onclick="saveWeightEntry()" style="margin-top:.5rem;">Save entry</button>
         </div>
-        <button class="btn-primary" id="save-btn" onclick="saveEntry()" style="margin-top:.5rem;">Save entry</button>
+
+        <div class="panel">
+          <div class="panel-title">Progress</div>
+          <div class="chart-tabs">
+            <button class="ct active" onclick="switchChart('weight',this)">Weight</button>
+            <button class="ct" onclick="switchChart('bmi',this)">BMI</button>
+            <button class="ct" onclick="switchChart('chest',this)">Chest</button>
+            <button class="ct" onclick="switchChart('waist',this)">Waist</button>
+            <button class="ct" onclick="switchChart('hips',this)">Hips</button>
+            <button class="ct" onclick="switchChart('arm',this)">Arm</button>
+            <button class="ct" onclick="switchChart('thigh',this)">Thigh</button>
+            <button class="ct" onclick="switchChart('calf',this)">Calf</button>
+          </div>
+          <div class="chart-wrap"><canvas id="chart"></canvas></div>
+        </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-title">Progress</div>
-        <div class="chart-tabs">
-          <button class="ct active" onclick="switchChart('weight',this)">Weight</button>
-          <button class="ct" onclick="switchChart('bmi',this)">BMI</button>
-          <button class="ct" onclick="switchChart('chest',this)">Chest</button>
-          <button class="ct" onclick="switchChart('waist',this)">Waist</button>
-          <button class="ct" onclick="switchChart('hips',this)">Hips</button>
-          <button class="ct" onclick="switchChart('arm',this)">Arm</button>
-          <button class="ct" onclick="switchChart('thigh',this)">Thigh</button>
-          <button class="ct" onclick="switchChart('calf',this)">Calf</button>
-        </div>
-        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+      <div class="panel-full">
+        <div class="panel-title">History</div>
+        <div class="log-wrap" id="log-area"><div class="empty">No entries yet.</div></div>
       </div>
-    </div>
 
-    <div class="panel" style="margin-bottom:1.5rem;">
-      <div class="panel-title">History</div>
-      <div class="log-wrap" id="log-area"><div class="empty">No entries yet.</div></div>
-    </div>
+      <div class="settings-panel">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;">⚙️ Settings</div>
+        <details>
+          <summary>Change PIN</summary>
+          <div class="change-pin-form">
+            <div class="fg"><label>Current PIN</label><input type="password" id="old-pin" maxlength="4" inputmode="numeric"></div>
+            <div class="fg"><label>New PIN (4 digits)</label><input type="password" id="new-pin" maxlength="4" inputmode="numeric"></div>
+            <button class="btn-sm" onclick="changePin()">Update</button>
+          </div>
+          <div id="pin-chg-msg" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
+        </details>
+      </div>
 
-    <div class="settings-panel">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;">⚙️ Settings</div>
-      <details>
-        <summary>Change PIN</summary>
-        <div class="change-pin-form">
-          <div class="fg"><label>Current PIN</label><input type="password" id="old-pin" maxlength="4" inputmode="numeric"></div>
-          <div class="fg"><label>New PIN (4 digits)</label><input type="password" id="new-pin" maxlength="4" inputmode="numeric"></div>
-          <button class="btn-sm" onclick="changePin()">Update</button>
-        </div>
-        <div id="pin-chg-msg" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
-      </details>
     </div>
-
   </div>
-</div>
+
+  <!-- ══ FOOD TAB ══ -->
+  <div id="tab-food" class="tab-panel">
+    <div class="main">
+
+      <div class="stats-row">
+        <div class="sc hi"><div class="sc-lbl">Today's calories</div><div class="sc-val" id="f-today">—</div><div class="sc-sub" id="f-today-sub"></div></div>
+        <div class="sc green-hi"><div class="sc-lbl">Record day 🏆</div><div class="sc-val" id="f-record">—</div><div class="sc-sub" id="f-record-date"></div></div>
+        <div class="sc"><div class="sc-lbl">7-day average</div><div class="sc-val" id="f-avg">—</div></div>
+        <div class="sc"><div class="sc-lbl">Food entries</div><div class="sc-val" id="f-count">0</div></div>
+      </div>
+
+      <div class="two-col">
+        <!-- Log food -->
+        <div class="panel">
+          <div class="panel-title">Log food</div>
+          <p class="search-hint">Search to auto-fill calories, or enter manually below</p>
+          <div class="search-wrap">
+            <input type="text" id="food-search" placeholder="Search food (e.g. banana, chicken breast…)" autocomplete="off">
+            <div class="search-results" id="search-results"></div>
+          </div>
+          <div class="food-form-row">
+            <div class="fg" style="margin:0;">
+              <label>Date</label>
+              <input type="date" id="f-inp-date">
+            </div>
+            <div class="fg" style="margin:0;">
+              <label>Meal</label>
+              <input type="text" id="f-inp-meal" placeholder="e.g. Breakfast">
+            </div>
+          </div>
+          <div class="food-form-row" style="margin-top:10px;">
+            <div class="fg" style="margin:0;">
+              <label>Food name</label>
+              <input type="text" id="f-inp-name" placeholder="e.g. Banana">
+            </div>
+            <div class="fg" style="margin:0;">
+              <label>Calories (kcal)</label>
+              <input type="number" id="f-inp-cal" placeholder="89" min="0" step="1">
+            </div>
+          </div>
+          <button class="btn-primary" id="food-save-btn" onclick="saveFoodEntry()" style="margin-top:1rem;">Add food</button>
+        </div>
+
+        <!-- Calorie chart -->
+        <div class="panel">
+          <div class="panel-title">Calories over time</div>
+          <div class="chart-wrap"><canvas id="food-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Food log by day -->
+      <div class="panel-full">
+        <div class="panel-title">Food diary</div>
+        <div id="food-log-area"><div class="empty">No food logged yet. 🍽️</div></div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /app -->
 
 <div class="toast" id="toast"></div>
 
-<!-- Firebase SDK (modular v9 compat) -->
 <script type="module">
-import { initializeApp }           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteField, onSnapshot }
-                                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp }      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FIREBASE_CONFIG = {
-    apiKey:            "AIzaSyC_DsvOmOs4FImj2iGRpAWgIGCsnbSgXFg",
-    authDomain:        "piggy-tracker-4d2a3.firebaseapp.com",
-    projectId:         "piggy-tracker-4d2a3",
-    storageBucket:     "piggy-tracker-4d2a3.firebasestorage.app",
-    messagingSenderId: "781352943965",
-    appId:             "1:781352943965:web:29b58c14a2516a715868b4"
-  };
+  apiKey:            "AIzaSyC_DsvOmOs4FImj2iGRpAWgIGCsnbSgXFg",
+  authDomain:        "piggy-tracker-4d2a3.firebaseapp.com",
+  projectId:         "piggy-tracker-4d2a3",
+  storageBucket:     "piggy-tracker-4d2a3.firebasestorage.app",
+  messagingSenderId: "781352943965",
+  appId:             "1:781352943965:web:29b58c14a2516a715868b4"
+};
+
 const app = initializeApp(FIREBASE_CONFIG);
 const db  = getFirestore(app);
 
 // ── STATE ────────────────────────────────────────────────
-let entries    = [];
-let currentHeight = null; // stored height in inches
-let trackerPin = null;   // the active PIN (= Firestore doc ID)
-let chartInst  = null;
-let chartKey   = 'weight';
-let unsub      = null;   // Firestore onSnapshot unsubscriber
+let weightEntries = [];
+let foodEntries   = [];
+let currentHeight = null;
+let trackerPin    = null;
+let chartInst     = null;
+let foodChartInst = null;
+let chartKey      = 'weight';
+let unsub         = null;
+let searchTimer   = null;
 
-// ── FIRESTORE HELPERS ────────────────────────────────────
-function trackerRef(pin) {
-  return doc(db, "trackers", pin);
-}
+// ── FIRESTORE ────────────────────────────────────────────
+const tRef = (pin) => doc(db, "trackers", pin);
 
 async function loadTracker(pin) {
-  const snap = await getDoc(trackerRef(pin));
+  const snap = await getDoc(tRef(pin));
   return snap.exists() ? snap.data() : null;
 }
 
-async function createTracker(pin) {
-  await setDoc(trackerRef(pin), { entries: [] });
+async function saveAll() {
+  await setDoc(tRef(trackerPin), {
+    entries:     weightEntries,
+    foodEntries: foodEntries,
+    height:      currentHeight || null
+  }, { merge: true });
 }
 
-async function pushEntries(pin, data) {
-  await setDoc(trackerRef(pin), { entries: data }, { merge: true });
-}
-
-// Real-time listener — keeps UI in sync across devices
 function subscribeTracker(pin) {
   if (unsub) unsub();
-  unsub = onSnapshot(trackerRef(pin), (snap) => {
+  unsub = onSnapshot(tRef(pin), (snap) => {
     if (snap.exists()) {
-      const data = snap.data();
-      entries = (data.entries || []).sort((a,b)=>a.date.localeCompare(b.date));
-      if (data.height) { currentHeight = data.height; }
+      const d = snap.data();
+      weightEntries = (d.entries      || []).sort((a,b)=>a.date.localeCompare(b.date));
+      foodEntries   = (d.foodEntries  || []).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+      if (d.height) currentHeight = d.height;
       updateHeightHint();
       renderAll();
-      setSync('ok','Synced');
+      setSyncUI('ok','Synced');
     }
-  }, (err) => {
-    console.error(err);
-    setSync('err','Sync error');
-  });
+  }, () => setSyncUI('err','Sync error'));
 }
 
 // ── PIN / LOCK ───────────────────────────────────────────
 async function checkPin() {
-  const digits = [...document.querySelectorAll('.pin-d')].map(d => d.value);
-  if (digits.some(d => d === '')) { showPinErr('Enter all 4 digits.'); return; }
+  const digits = [...document.querySelectorAll('.pin-d')].map(d=>d.value);
+  if (digits.some(d=>d==='')) { showPinErr('Enter all 4 digits.'); return; }
   const pin = digits.join('');
-
   const btn = document.getElementById('unlock-btn');
-  btn.disabled = true; btn.textContent = 'Checking…';
-  clearPinErr();
-  setSyncUI('busy', 'Connecting…');
-
+  btn.disabled=true; btn.textContent='Checking…';
+  clearPinErr(); setSyncUI('busy','Connecting…');
   try {
     const existing = await loadTracker(pin);
     if (existing === null) {
-      // New PIN — create tracker in Firestore
-      await createTracker(pin);
+      await setDoc(tRef(pin), { entries:[], foodEntries:[], height:null });
       trackerPin = pin;
       subscribeTracker(pin);
       unlockApp(true);
     } else {
-      // Existing PIN — load data
-      entries = (existing.entries || []).sort((a,b)=>a.date.localeCompare(b.date));
-      if (existing.height) { currentHeight = existing.height; }
+      weightEntries = (existing.entries     || []).sort((a,b)=>a.date.localeCompare(b.date));
+      foodEntries   = (existing.foodEntries || []).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+      if (existing.height) currentHeight = existing.height;
       trackerPin = pin;
       subscribeTracker(pin);
       unlockApp(false);
     }
   } catch(e) {
-    console.error(e);
-    showPinErr('Connection failed. Check your internet or Firebase config.');
+    showPinErr('Connection failed. Check internet.');
     setSyncUI('err','Error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Unlock →';
+    btn.disabled=false; btn.textContent='Unlock →';
   }
 }
 window.checkPin = checkPin;
 
 function unlockApp(isNew) {
-  document.getElementById('lock').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  if (isNew) document.getElementById('share-banner').style.display = 'flex';
-  document.getElementById('inp-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('lock').style.display='none';
+  document.getElementById('app').style.display='block';
+  if (isNew) document.getElementById('share-banner').style.display='flex';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('inp-date').value   = today;
+  document.getElementById('f-inp-date').value = today;
   setSyncUI('ok','Synced');
   updateHeightHint();
   renderAll();
 }
 
 function lock() {
-  if (unsub) { unsub(); unsub = null; }
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('lock').style.display = 'flex';
-  document.querySelectorAll('.pin-d').forEach(d => d.value = '');
+  if (unsub) { unsub(); unsub=null; }
+  document.getElementById('app').style.display='none';
+  document.getElementById('lock').style.display='flex';
+  document.querySelectorAll('.pin-d').forEach(d=>d.value='');
   clearPinErr();
-  entries = []; trackerPin = null;
+  weightEntries=[]; foodEntries=[]; trackerPin=null; currentHeight=null;
 }
 window.lock = lock;
 
-// ── SAVE ENTRY ───────────────────────────────────────────
-async function saveEntry() {
+// ── WEIGHT ENTRY ─────────────────────────────────────────
+async function saveWeightEntry() {
   const weight = parseFloat(document.getElementById('inp-weight').value);
   const date   = document.getElementById('inp-date').value;
-  if (!date)              { showToast('Pick a date first', true); return; }
-  if (!weight || weight<=0) { showToast('Enter a valid weight', true); return; }
+  if (!date)           { showToast('Pick a date first', true); return; }
+  if (!weight||weight<=0) { showToast('Enter a valid weight', true); return; }
 
-  // Handle height — update stored height if new one entered
   const newFt = parseInt(document.getElementById('inp-height-ft').value);
   const newIn = parseInt(document.getElementById('inp-height-in').value);
-  let heightInches = currentHeight; // use stored height by default
   if (!isNaN(newFt) && newFt > 0) {
-    heightInches = (newFt * 12) + (isNaN(newIn) ? 0 : newIn);
-    currentHeight = heightInches;
-    // Save height to Firestore
-    await setDoc(trackerRef(trackerPin), { height: heightInches }, { merge: true });
+    currentHeight = (newFt * 12) + (isNaN(newIn) ? 0 : newIn);
   }
 
-  const bmi = heightInches ? calcBMI(weight, heightInches) : null;
+  const bmi = (currentHeight && weight) ? calcBMI(weight, currentHeight) : null;
 
   const entry = {
-    id: Date.now(), date, weight,
-    bmi,
-    heightInches,
+    id: Date.now(), date, weight, bmi,
+    heightInches: currentHeight,
     chest: pf('inp-chest'), waist: pf('inp-waist'), hips: pf('inp-hips'),
     thigh: pf('inp-thigh'), arm:   pf('inp-arm'),   calf: pf('inp-calf'),
-    notes: document.getElementById('inp-notes').value || ''
+    notes: document.getElementById('inp-notes').value||''
   };
 
-  const updated = [...entries, entry].sort((a,b)=>a.date.localeCompare(b.date));
+  weightEntries = [...weightEntries, entry].sort((a,b)=>a.date.localeCompare(b.date));
 
   const btn = document.getElementById('save-btn');
-  btn.disabled = true; btn.textContent = 'Saving…';
-  setSyncUI('busy','Saving…');
-
+  btn.disabled=true; btn.textContent='Saving…'; setSyncUI('busy','Saving…');
   try {
-    await pushEntries(trackerPin, updated);
-    // onSnapshot will update entries + UI
-    clearInputs();
-    document.getElementById('share-banner').style.display = 'none';
+    await saveAll();
+    clearWeightInputs();
+    document.getElementById('share-banner').style.display='none';
     showToast('Entry saved 🐷');
   } catch(e) {
-    console.error(e);
-    showToast('Save failed — check connection', true);
-    setSyncUI('err','Save failed');
+    showToast('Save failed', true); setSyncUI('err','Error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Save entry';
+    btn.disabled=false; btn.textContent='Save entry';
   }
 }
-window.saveEntry = saveEntry;
+window.saveWeightEntry = saveWeightEntry;
 
-// ── DELETE ───────────────────────────────────────────────
-async function deleteEntry(id) {
+async function deleteWeightEntry(id) {
   if (!confirm('Delete this entry?')) return;
-  const updated = entries.filter(e => e.id !== id);
+  weightEntries = weightEntries.filter(e=>e.id!==id);
   setSyncUI('busy','Saving…');
+  try { await saveAll(); showToast('Deleted'); } catch(e) { setSyncUI('err','Error'); }
+}
+window.deleteWeightEntry = deleteWeightEntry;
+
+// ── FOOD SEARCH (Open Food Facts API — free, no key) ──────
+async function searchFood(q) {
+  if (!q || q.length < 2) { closeSearch(); return; }
+  const res = document.getElementById('search-results');
+  res.innerHTML = '<div class="search-loading">Searching…</div>';
+  res.classList.add('open');
   try {
-    await pushEntries(trackerPin, updated);
-    showToast('Entry deleted');
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,nutriments`;
+    const r = await fetch(url);
+    const data = await r.json();
+    const products = (data.products||[]).filter(p => p.product_name && p.nutriments?.['energy-kcal_100g']);
+    if (!products.length) {
+      res.innerHTML = '<div class="search-loading">No results — enter calories manually</div>';
+      return;
+    }
+    res.innerHTML = products.map(p => {
+      const cal = Math.round(p.nutriments['energy-kcal_100g']);
+      const name = p.product_name.slice(0,50);
+      return `<div class="search-item" onclick="selectFood('${name.replace(/'/g,"\\'")}', ${cal})">
+        <span class="food-name">${name}</span>
+        <span class="food-cal">${cal} kcal/100g</span>
+      </div>`;
+    }).join('');
   } catch(e) {
-    showToast('Delete failed', true);
-    setSyncUI('err','Error');
+    res.innerHTML = '<div class="search-loading">Search unavailable — enter manually</div>';
   }
 }
-window.deleteEntry = deleteEntry;
 
-// ── CHANGE PIN ───────────────────────────────────────────
-async function changePin() {
-  const oldP = document.getElementById('old-pin').value;
-  const newP = document.getElementById('new-pin').value;
-  const msg  = document.getElementById('pin-chg-msg');
+function selectFood(name, cal) {
+  document.getElementById('f-inp-name').value = name;
+  document.getElementById('f-inp-cal').value  = cal;
+  closeSearch();
+  document.getElementById('f-inp-cal').focus();
+}
+window.selectFood = selectFood;
 
-  if (oldP !== trackerPin)      { msg.style.color='var(--red)';   msg.textContent='Current PIN incorrect.';       return; }
-  if (!/^\d{4}$/.test(newP))   { msg.style.color='var(--red)';   msg.textContent='New PIN must be 4 digits.';    return; }
-  if (oldP === newP)            { msg.style.color='var(--red)';   msg.textContent='New PIN must differ.';          return; }
+function closeSearch() {
+  const res = document.getElementById('search-results');
+  res.classList.remove('open');
+  res.innerHTML = '';
+}
 
-  setSyncUI('busy','Updating PIN…');
+// ── FOOD ENTRY ────────────────────────────────────────────
+async function saveFoodEntry() {
+  const name = document.getElementById('f-inp-name').value.trim();
+  const cal  = parseInt(document.getElementById('f-inp-cal').value);
+  const date = document.getElementById('f-inp-date').value;
+  const meal = document.getElementById('f-inp-meal').value.trim();
+  if (!date)        { showToast('Pick a date', true); return; }
+  if (!name)        { showToast('Enter a food name', true); return; }
+  if (!cal || cal<=0) { showToast('Enter calories', true); return; }
+
+  const entry = { id: Date.now(), date, name, cal, meal: meal||'Meal' };
+  foodEntries = [...foodEntries, entry].sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+
+  const btn = document.getElementById('food-save-btn');
+  btn.disabled=true; btn.textContent='Saving…'; setSyncUI('busy','Saving…');
   try {
-    // Copy data to new PIN document
-    await setDoc(trackerRef(newP), { entries });
-    // Remove old doc (best-effort)
-    await setDoc(trackerRef(oldP), { _deleted: true });
-    // Re-subscribe to new doc
-    trackerPin = newP;
-    subscribeTracker(newP);
-    document.getElementById('old-pin').value = '';
-    document.getElementById('new-pin').value = '';
-    msg.style.color = 'var(--green)';
-    msg.textContent = 'PIN updated! Share the new PIN with your tracker buddy.';
-    setSyncUI('ok','Synced');
-    setTimeout(() => msg.textContent = '', 4000);
+    await saveAll();
+    document.getElementById('f-inp-name').value='';
+    document.getElementById('f-inp-cal').value='';
+    document.getElementById('food-search').value='';
+    showToast('Food logged 🍽️');
   } catch(e) {
-    msg.style.color = 'var(--red)';
-    msg.textContent = 'Failed — try again.';
-    setSyncUI('err','Error');
+    showToast('Save failed', true); setSyncUI('err','Error');
+  } finally {
+    btn.disabled=false; btn.textContent='Add food';
   }
 }
-window.changePin = changePin;
+window.saveFoodEntry = saveFoodEntry;
 
-// ── RENDER ───────────────────────────────────────────────
-function renderAll() { renderStats(); renderChart(chartKey); renderLog(); }
+async function deleteFoodEntry(id) {
+  if (!confirm('Delete this food entry?')) return;
+  foodEntries = foodEntries.filter(e=>e.id!==id);
+  setSyncUI('busy','Saving…');
+  try { await saveAll(); showToast('Deleted'); } catch(e) { setSyncUI('err','Error'); }
+}
+window.deleteFoodEntry = deleteFoodEntry;
 
-function calcBMI(weightLbs, heightInches) {
-  return (weightLbs / (heightInches * heightInches)) * 703;
+// ── TAB SWITCHING ─────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  btn.classList.add('active');
+}
+window.switchTab = switchTab;
+
+// ── RENDER ALL ────────────────────────────────────────────
+function renderAll() {
+  renderWeightStats();
+  renderWeightChart(chartKey);
+  renderWeightLog();
+  renderFoodStats();
+  renderFoodChart();
+  renderFoodLog();
 }
 
-function bmiCategory(bmi) {
-  if (bmi < 18.5) return { label: 'Underweight', pct: bmiPercentile(bmi) };
-  if (bmi < 25)   return { label: 'Healthy',     pct: bmiPercentile(bmi) };
-  if (bmi < 30)   return { label: 'Overweight',  pct: bmiPercentile(bmi) };
-  return               { label: 'Obese',          pct: bmiPercentile(bmi) };
-}
-
-// BMI percentile among US adults (CDC NHANES data approximation)
-// Mean BMI ~28.5, std dev ~6.5
-function bmiPercentile(bmi) {
-  // Use normal CDF approximation
-  const mean = 28.5, sd = 6.5;
-  const z = (bmi - mean) / sd;
-  const pct = normalCDF(z);
-  return Math.round(pct * 100);
-}
-
-function normalCDF(z) {
-  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
-  const sign = z < 0 ? -1 : 1;
-  const x = Math.abs(z) / Math.sqrt(2);
-  const t = 1/(1+p*x);
-  const y = 1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
-  return 0.5*(1+sign*y);
-}
-
-function renderStats() {
-  const ws  = entries.map(e => e.weight);
+// ── WEIGHT RENDER ─────────────────────────────────────────
+function renderWeightStats() {
+  const ws  = weightEntries.map(e=>e.weight);
   const cur = ws[ws.length-1];
   const sta = ws[0];
   sv('s-cur',   cur ? cur.toFixed(1)+' lbs' : '—');
   sv('s-start', sta ? sta.toFixed(1)+' lbs' : '—');
-  sv('s-count', entries.length);
+  sv('s-count', weightEntries.length);
   if (cur && sta) {
-    const d = cur - sta;
+    const d = cur-sta;
     sv('s-total', (d>=0?'+':'')+d.toFixed(1)+' lbs');
-    if (entries.length >= 2) {
-      const prev = entries[entries.length-2].weight;
-      const dd   = cur - prev;
+    if (weightEntries.length >= 2) {
+      const prev = weightEntries[weightEntries.length-2].weight;
+      const dd   = cur-prev;
       const el   = document.getElementById('s-delta');
       el.textContent = (dd>=0?'▲ +':'▼ ')+Math.abs(dd).toFixed(1)+' from last';
       el.className   = 'sc-sub '+(dd>=0?'pos':'neg');
     }
   } else { sv('s-total','—'); }
-
-  // BMI
-  const h = currentHeight || (entries.length > 0 && entries[entries.length-1].heightInches);
+  const h = currentHeight || (weightEntries.length && weightEntries[weightEntries.length-1].heightInches);
   if (cur && h) {
     const bmi = calcBMI(cur, h);
     const cat = bmiCategory(bmi);
     sv('s-bmi', bmi.toFixed(1));
-    const bmiEl = document.getElementById('s-bmi-cat');
-    if (bmiEl) {
-      bmiEl.textContent = cat.label + ' · heavier than ' + cat.pct + '%';
-      bmiEl.className = 'sc-sub';
-    }
+    const el = document.getElementById('s-bmi-cat');
+    if (el) { el.textContent = cat.label+' · heavier than '+cat.pct+'%'; el.className='sc-sub'; }
   } else {
-    sv('s-bmi', '—');
-    const bmiEl = document.getElementById('s-bmi-cat');
-    if (bmiEl) { bmiEl.textContent = 'enter height to calculate'; bmiEl.className = 'sc-sub'; }
+    sv('s-bmi','—');
+    const el = document.getElementById('s-bmi-cat');
+    if (el) { el.textContent='enter height to calculate'; el.className='sc-sub'; }
   }
 }
-
-function sv(id,v) { const el=document.getElementById(id); if(el) el.textContent=v; }
 
 const chartLabels = { weight:'Weight (lbs)', bmi:'BMI', chest:'Chest (in)', waist:'Waist (in)', hips:'Hips (in)', arm:'Upper arm (in)', thigh:'Thigh (in)', calf:'Calf (in)' };
 
 function switchChart(key, btn) {
-  chartKey = key;
-  document.querySelectorAll('.ct').forEach(b => b.classList.remove('active'));
+  chartKey=key;
+  document.querySelectorAll('#tab-weight .ct').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  renderChart(key);
+  renderWeightChart(key);
 }
 window.switchChart = switchChart;
 
-function renderChart(key) {
-  const valid  = entries.filter(e => e[key] != null);
+function renderWeightChart(key) {
+  const valid  = weightEntries.filter(e=>e[key]!=null);
   const canvas = document.getElementById('chart');
-  if (chartInst) { chartInst.destroy(); chartInst = null; }
-  const ctx    = canvas.getContext('2d');
+  if (chartInst) { chartInst.destroy(); chartInst=null; }
+  const ctx = canvas.getContext('2d');
   if (!valid.length) {
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = 'rgba(140,134,128,0.4)';
-    ctx.font      = '13px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
+    ctx.fillStyle='rgba(140,134,128,0.4)'; ctx.font='13px DM Sans,sans-serif'; ctx.textAlign='center';
     ctx.fillText('No data for this metric yet', canvas.width/2, 100);
     return;
   }
   chartInst = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels:   valid.map(e => fd(e.date)),
-      datasets: [{
-        label: chartLabels[key]||key, data: valid.map(e=>e[key]),
-        borderColor:'#e8956d', backgroundColor:'rgba(232,149,109,0.07)',
-        tension:0.35, fill:true,
-        pointBackgroundColor:'#e8956d', pointBorderColor:'#0f0e0c',
-        pointBorderWidth:2, pointRadius:4, pointHoverRadius:6
+    type:'line',
+    data:{ labels:valid.map(e=>fd(e.date)), datasets:[{ label:chartLabels[key]||key, data:valid.map(e=>e[key]),
+      borderColor:'#e8956d', backgroundColor:'rgba(232,149,109,0.07)', tension:0.35, fill:true,
+      pointBackgroundColor:'#e8956d', pointBorderColor:'#0f0e0c', pointBorderWidth:2, pointRadius:4, pointHoverRadius:6 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5a5652',font:{size:11,family:'DM Sans'}} },
+               y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5a5652',font:{size:11,family:'DM Sans'}} } } }
+  });
+}
+
+function renderWeightLog() {
+  const area = document.getElementById('log-area');
+  if (!weightEntries.length) { area.innerHTML='<div class="empty">No entries yet.</div>'; return; }
+  const rows = [...weightEntries].reverse().map(e=>`
+    <tr>
+      <td>${fd(e.date)}</td><td>${e.weight.toFixed(1)}</td>
+      <td>${e.bmi!=null?e.bmi.toFixed(1):'—'}</td>
+      <td>${e.chest!=null?e.chest.toFixed(2):'—'}</td><td>${e.waist!=null?e.waist.toFixed(2):'—'}</td>
+      <td>${e.hips!=null?e.hips.toFixed(2):'—'}</td><td>${e.arm!=null?e.arm.toFixed(2):'—'}</td>
+      <td>${e.thigh!=null?e.thigh.toFixed(2):'—'}</td><td>${e.calf!=null?e.calf.toFixed(2):'—'}</td>
+      <td style="color:var(--text3);font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${e.notes||''}</td>
+      <td><button class="del" onclick="deleteWeightEntry(${e.id})">×</button></td>
+    </tr>`).join('');
+  area.innerHTML=`<table><thead><tr>
+    <th>Date</th><th>Weight</th><th>BMI</th><th>Chest</th><th>Waist</th><th>Hips</th><th>Arm</th><th>Thigh</th><th>Calf</th><th>Notes</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── FOOD RENDER ───────────────────────────────────────────
+function getDailyCalories() {
+  const map = {};
+  foodEntries.forEach(e => {
+    if (!map[e.date]) map[e.date] = 0;
+    map[e.date] += e.cal;
+  });
+  return map;
+}
+
+function renderFoodStats() {
+  const today = new Date().toISOString().slice(0,10);
+  const daily = getDailyCalories();
+  const todayCal = daily[today] || 0;
+  sv('f-today', todayCal > 0 ? todayCal.toLocaleString() : '—');
+  const todayItems = foodEntries.filter(e=>e.date===today).length;
+  const todaySub = document.getElementById('f-today-sub');
+  if (todaySub) todaySub.textContent = todayItems > 0 ? todayItems+' item'+(todayItems>1?'s':'') : 'nothing logged today';
+
+  // Record day
+  const days = Object.entries(daily);
+  if (days.length) {
+    const record = days.reduce((best, d) => d[1] > best[1] ? d : best, days[0]);
+    sv('f-record', record[1].toLocaleString());
+    const el = document.getElementById('f-record-date');
+    if (el) el.textContent = fd(record[0]) + (record[0]===today ? ' (today!)' : '');
+  } else {
+    sv('f-record','—');
+  }
+
+  // 7-day average
+  const last7 = [];
+  for (let i=0; i<7; i++) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    if (daily[key]) last7.push(daily[key]);
+  }
+  sv('f-avg', last7.length ? Math.round(last7.reduce((a,b)=>a+b,0)/last7.length).toLocaleString() : '—');
+  sv('f-count', foodEntries.length);
+}
+
+function renderFoodChart() {
+  const daily = getDailyCalories();
+  const canvas = document.getElementById('food-chart');
+  if (foodChartInst) { foodChartInst.destroy(); foodChartInst=null; }
+  const ctx = canvas.getContext('2d');
+  const days = Object.keys(daily).sort().slice(-30); // last 30 days
+  if (!days.length) {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='rgba(140,134,128,0.4)'; ctx.font='13px DM Sans,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('No food logged yet', canvas.width/2, 100);
+    return;
+  }
+  // Find record for highlighting
+  const maxCal = Math.max(...days.map(d=>daily[d]));
+  foodChartInst = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: days.map(d=>fd(d)),
+      datasets:[{
+        label:'Calories',
+        data: days.map(d=>daily[d]),
+        backgroundColor: days.map(d => daily[d]===maxCal ? 'rgba(109,184,138,0.7)' : 'rgba(232,149,109,0.5)'),
+        borderColor:     days.map(d => daily[d]===maxCal ? '#6db88a' : '#e8956d'),
+        borderWidth: 1, borderRadius: 4
       }]
     },
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false } },
+      plugins:{ legend:{display:false} },
       scales:{
-        x:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#5a5652', font:{ size:11, family:'DM Sans' } } },
-        y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#5a5652', font:{ size:11, family:'DM Sans' } } }
+        x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5a5652',font:{size:11,family:'DM Sans'}} },
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5a5652',font:{size:11,family:'DM Sans'}} }
       }
     }
   });
 }
 
-function renderLog() {
-  const area = document.getElementById('log-area');
-  if (!entries.length) { area.innerHTML='<div class="empty">No entries yet. Log your first one! 🐷</div>'; return; }
-  const rows = [...entries].reverse().map(e=>`
-    <tr>
-      <td>${fd(e.date)}</td>
-      <td>${e.weight.toFixed(1)}</td>
-      <td>${e.bmi!=null?e.bmi.toFixed(1):'—'}</td>
-      <td>${e.chest!=null?e.chest.toFixed(2):'—'}</td>
-      <td>${e.waist!=null?e.waist.toFixed(2):'—'}</td>
-      <td>${e.hips!=null?e.hips.toFixed(2):'—'}</td>
-      <td>${e.arm!=null?e.arm.toFixed(2):'—'}</td>
-      <td>${e.thigh!=null?e.thigh.toFixed(2):'—'}</td>
-      <td>${e.calf!=null?e.calf.toFixed(2):'—'}</td>
-      <td style="color:var(--text3);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${e.notes||''}</td>
-      <td><button class="del" onclick="deleteEntry(${e.id})" title="Delete">×</button></td>
-    </tr>`).join('');
-  area.innerHTML=`<table>
-    <thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>Chest</th><th>Waist</th><th>Hips</th><th>Arm</th><th>Thigh</th><th>Calf</th><th>Notes</th><th></th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+function renderFoodLog() {
+  const area = document.getElementById('food-log-area');
+  if (!foodEntries.length) { area.innerHTML='<div class="empty">No food logged yet. 🍽️</div>'; return; }
+
+  // Group by date, most recent first
+  const groups = {};
+  [...foodEntries].reverse().forEach(e => {
+    if (!groups[e.date]) groups[e.date] = [];
+    groups[e.date].push(e);
+  });
+
+  const daily = getDailyCalories();
+  const maxCal = Math.max(...Object.values(daily));
+  const today = new Date().toISOString().slice(0,10);
+
+  area.innerHTML = Object.keys(groups).sort().reverse().map(date => {
+    const totalCal = daily[date];
+    const isRecord = totalCal === maxCal;
+    const isToday  = date === today;
+    const calClass = isRecord ? 'day-header-cal record' : 'day-header-cal';
+    const rows = groups[date].map(e=>`
+      <div class="food-entry-row">
+        <span class="food-entry-name">${e.meal ? '<span style="color:var(--text3);font-size:11px;margin-right:6px;">'+e.meal+'</span>' : ''}${e.name}</span>
+        <div class="food-entry-right">
+          <span class="food-entry-cal">${e.cal.toLocaleString()} kcal</span>
+          <button class="del" onclick="deleteFoodEntry(${e.id})">×</button>
+        </div>
+      </div>`).join('');
+    return `<div class="day-group">
+      <div class="day-header">
+        <span class="day-header-date">${fd(date)}${isToday?' <span style="color:var(--accent);font-size:11px;">Today</span>':''}</span>
+        <span class="${calClass}">${isRecord?'🏆 ':''} ${totalCal.toLocaleString()} kcal</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
 }
 
-// ── UTILS ────────────────────────────────────────────────
+// ── UTILS ─────────────────────────────────────────────────
+function calcBMI(lbs, inches) { return (lbs/(inches*inches))*703; }
+function bmiCategory(bmi) {
+  const pct = bmiPercentile(bmi);
+  if (bmi<18.5) return {label:'Underweight',pct};
+  if (bmi<25)   return {label:'Healthy',pct};
+  if (bmi<30)   return {label:'Overweight',pct};
+  return              {label:'Obese',pct};
+}
+function bmiPercentile(bmi) {
+  const z=(bmi-28.5)/6.5, a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const sign=z<0?-1:1, x=Math.abs(z)/Math.sqrt(2), t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return Math.round(0.5*(1+sign*y)*100);
+}
 function pf(id) { const v=parseFloat(document.getElementById(id).value); return isNaN(v)?null:v; }
 function fd(d)  { if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y.slice(2)}`; }
-function clearInputs() {
+function sv(id,v) { const el=document.getElementById(id); if(el) el.textContent=v; }
+function showPinErr(m) { document.getElementById('pin-err').textContent=m; }
+function clearPinErr() { document.getElementById('pin-err').textContent=''; }
+function showToast(msg,err) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=err?'var(--red)':'var(--green)'; t.style.color=err?'#1a0505':'#0a1f12';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600);
+}
+function setSyncUI(state,label) {
+  const dot=document.getElementById('sync-dot'), lbl=document.getElementById('sync-lbl');
+  if(dot) dot.className='sync-dot '+state;
+  if(lbl) lbl.textContent=label||'';
+}
+
+function clearWeightInputs() {
   ['weight','chest','waist','hips','thigh','arm','calf','notes'].forEach(k=>{
     const el=document.getElementById('inp-'+k); if(el) el.value='';
   });
-  document.getElementById('inp-height-ft').value = '';
-  document.getElementById('inp-height-in').value = '';
-  // Update hint to show current stored height
+  document.getElementById('inp-height-ft').value='';
+  document.getElementById('inp-height-in').value='';
   updateHeightHint();
 }
 
 function updateHeightHint() {
-  const hint = document.getElementById('height-hint');
-  if (!hint) return;
+  const hint=document.getElementById('height-hint'); if(!hint) return;
   if (currentHeight) {
-    const ft = Math.floor(currentHeight / 12);
-    const inches = currentHeight % 12;
-    hint.textContent = 'Saved height: ' + ft + 'ft ' + inches + 'in — leave blank to keep using this';
-    hint.style.color = 'var(--green)';
+    const ft=Math.floor(currentHeight/12), ins=currentHeight%12;
+    hint.textContent='Saved: '+ft+'ft '+ins+'in'; hint.style.color='var(--green)';
   } else {
-    hint.textContent = 'No height saved yet — enter one to enable BMI';
-    hint.style.color = 'var(--text3)';
+    hint.textContent='Enter height to enable BMI'; hint.style.color='var(--text3)';
   }
 }
-function showPinErr(msg) { document.getElementById('pin-err').textContent=msg; }
-function clearPinErr()   { document.getElementById('pin-err').textContent=''; }
-function showToast(msg,err) {
-  const t=document.getElementById('toast');
-  t.textContent=msg;
-  t.style.background=err?'var(--red)':'var(--green)';
-  t.style.color=err?'#1a0505':'#0a1f12';
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2600);
+
+async function changePin() {
+  const oldP=document.getElementById('old-pin').value, newP=document.getElementById('new-pin').value;
+  const msg=document.getElementById('pin-chg-msg');
+  if (oldP!==trackerPin)    { msg.style.color='var(--red)'; msg.textContent='Current PIN incorrect.'; return; }
+  if (!/^\d{4}$/.test(newP)){ msg.style.color='var(--red)'; msg.textContent='New PIN must be 4 digits.'; return; }
+  if (oldP===newP)           { msg.style.color='var(--red)'; msg.textContent='New PIN must differ.'; return; }
+  setSyncUI('busy','Updating…');
+  try {
+    await setDoc(tRef(newP), { entries:weightEntries, foodEntries, height:currentHeight||null });
+    await setDoc(tRef(oldP), { _deleted:true });
+    trackerPin=newP;
+    subscribeTracker(newP);
+    document.getElementById('old-pin').value=''; document.getElementById('new-pin').value='';
+    msg.style.color='var(--green)'; msg.textContent='PIN updated!';
+    setSyncUI('ok','Synced'); setTimeout(()=>msg.textContent='',4000);
+  } catch(e) { msg.style.color='var(--red)'; msg.textContent='Failed — try again.'; }
 }
-function setSyncUI(state,label) {
-  const dot=document.getElementById('sync-dot');
-  const lbl=document.getElementById('sync-lbl');
-  if(dot){ dot.className='sync-dot '+state; }
-  if(lbl) lbl.textContent=label||'';
-}
-function setSync(state,label){ setSyncUI(state,label); }
+window.changePin = changePin;
 
-// ── INIT ─────────────────────────────────────────────────
-document.getElementById('loading').style.display = 'none';
-document.getElementById('lock').style.display    = 'flex';
+// ── FOOD SEARCH WIRING ────────────────────────────────────
+document.getElementById('food-search').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => searchFood(e.target.value.trim()), 400);
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('search-results').contains(e.target) &&
+      e.target.id !== 'food-search') closeSearch();
+});
 
-// Check if this looks like a first-time open (no stored usage hint)
-// Show "new tracker" hint on lock screen
-document.getElementById('new-hint').style.display = 'block';
-document.getElementById('lock-sub').textContent   = 'Enter your PIN to access';
+// ── INIT ──────────────────────────────────────────────────
+document.getElementById('loading').style.display='none';
+document.getElementById('lock').style.display='flex';
+document.getElementById('new-hint').style.display='block';
 
-// Wire up PIN input keyboard navigation
-const dots = [...document.querySelectorAll('.pin-d')];
-dots.forEach((inp,i) => {
-  inp.addEventListener('input', () => { if(inp.value.length===1 && i<dots.length-1) dots[i+1].focus(); });
-  inp.addEventListener('keydown', e => {
-    if(e.key==='Backspace' && inp.value==='' && i>0) dots[i-1].focus();
-    if(e.key==='Enter') checkPin();
-  });
+const dots=[...document.querySelectorAll('.pin-d')];
+dots.forEach((inp,i)=>{
+  inp.addEventListener('input',()=>{ if(inp.value.length===1&&i<dots.length-1) dots[i+1].focus(); });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&inp.value===''&&i>0) dots[i-1].focus(); if(e.key==='Enter') checkPin(); });
 });
 dots[0].focus();
-
 </script>
 </body>
 </html>
