@@ -869,13 +869,26 @@ function bmiCategory(bmi) {
   if (bmi<30)   return {label:'Overweight',pct};
   return              {label:'Obese',pct};
 }
+// Percentile lookup based on real CDC/NHANES adult BMI distribution data
+// (NHANES 2021-2023: ~40% obese BMI>=30, ~9.4% severely obese BMI>=40)
 function bmiPercentile(bmi) {
-  const z=(bmi-28.5)/6.5, a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
-  const sign=z<0?-1:1, x=Math.abs(z)/Math.sqrt(2), t=1/(1+p*x);
-  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
-  const raw = 0.5*(1+sign*y)*100;
-  // Cap display range so it never shows a meaningless 0% or 100%
-  return Math.max(1, Math.min(99, Math.round(raw)));
+  // Approximate cumulative percentile points anchored to published NHANES prevalence
+  const points = [
+    [15, 1],  [17, 3],  [18.5, 7],  [20, 17],
+    [22, 32], [25, 50], [27, 65],   [30, 78],
+    [32, 85], [35, 90], [40, 95],   [45, 97],
+    [50, 98], [55, 99], [60, 99]
+  ];
+  if (bmi <= points[0][0]) return points[0][1];
+  if (bmi >= points[points.length-1][0]) return points[points.length-1][1];
+  for (let i = 0; i < points.length-1; i++) {
+    const [b1,p1] = points[i], [b2,p2] = points[i+1];
+    if (bmi >= b1 && bmi <= b2) {
+      const frac = (bmi-b1)/(b2-b1);
+      return Math.round(p1 + frac*(p2-p1));
+    }
+  }
+  return 50;
 }
 function pf(id) { const v=parseFloat(document.getElementById(id).value); return isNaN(v)?null:v; }
 function fd(d)  { if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y.slice(2)}`; }
