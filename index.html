@@ -514,7 +514,7 @@ async function saveWeightEntry() {
     await saveAll();
     clearWeightInputs();
     document.getElementById('share-banner').style.display='none';
-    showToast('Entry saved 🐷');
+    showToast("You're getting fat piggy 🐷");
   } catch(e) {
     showToast('Save failed', true); setSyncUI('err','Error');
   } finally {
@@ -873,7 +873,9 @@ function bmiPercentile(bmi) {
   const z=(bmi-28.5)/6.5, a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
   const sign=z<0?-1:1, x=Math.abs(z)/Math.sqrt(2), t=1/(1+p*x);
   const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
-  return Math.round(0.5*(1+sign*y)*100);
+  const raw = 0.5*(1+sign*y)*100;
+  // Cap display range so it never shows a meaningless 0% or 100%
+  return Math.max(1, Math.min(99, Math.round(raw)));
 }
 function pf(id) { const v=parseFloat(document.getElementById(id).value); return isNaN(v)?null:v; }
 function fd(d)  { if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y.slice(2)}`; }
