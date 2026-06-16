@@ -228,12 +228,8 @@ details summary:hover{color:var(--text2);}
           <div class="form-row">
             <div class="fg"><label>Date</label><input type="date" id="inp-date"></div>
             <div class="fg"><label>Weight (lbs)</label><input type="number" id="inp-weight" placeholder="145.5" step="0.1" min="0"></div>
-            <div class="section-div">Height (saved for all future BMI calculations)</div>
-            <div class="fg form-full" style="display:flex;align-items:flex-end;gap:10px;">
-              <div style="flex:1;"><label>Feet</label><input type="number" id="inp-height-ft" placeholder="5" step="1" min="1" max="8"></div>
-              <div style="flex:1;"><label>Inches</label><input type="number" id="inp-height-in" placeholder="8" step="1" min="0" max="11"></div>
-              <div style="flex:2;padding-bottom:2px;font-size:12px;color:var(--text3);line-height:1.4;" id="height-hint">Enter height to enable BMI</div>
-            </div>
+            <div class="section-div">Height (fixed for all BMI calculations)</div>
+            <div class="fg form-full" style="font-size:13px;color:var(--text2);">Height is set to <strong style="color:var(--text);">5'2" (62 in)</strong> for all entries.</div>
             <div class="section-div">Measurements — inches (optional)</div>
             <div class="fg"><label>Chest</label><input type="number" id="inp-chest" placeholder="36.0" step="0.25" min="0"></div>
             <div class="fg"><label>Waist</label><input type="number" id="inp-waist" placeholder="30.0" step="0.25" min="0"></div>
@@ -378,7 +374,7 @@ const db  = getFirestore(app);
 // ── STATE ────────────────────────────────────────────────
 let weightEntries = [];
 let foodEntries   = [];
-let currentHeight = null;
+let currentHeight = 62; // hardcoded: 5'2"
 let usdaApiKey    = null;
 let trackerPin    = null;
 let chartInst     = null;
@@ -411,9 +407,7 @@ function subscribeTracker(pin) {
       const d = snap.data();
       weightEntries = (d.entries      || []).sort((a,b)=>a.date.localeCompare(b.date));
       foodEntries   = (d.foodEntries  || []).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
-      if (d.height)      currentHeight = d.height;
       if (d.usdaApiKey)  { usdaApiKey = d.usdaApiKey; updateApiKeyHint(); }
-      updateHeightHint();
       renderAll();
       setSyncUI('ok','Synced');
     }
@@ -438,7 +432,6 @@ async function checkPin() {
     } else {
       weightEntries = (existing.entries     || []).sort((a,b)=>a.date.localeCompare(b.date));
       foodEntries   = (existing.foodEntries || []).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
-      if (existing.height)     currentHeight = existing.height;
       if (existing.usdaApiKey) { usdaApiKey = existing.usdaApiKey; }
       trackerPin = pin;
       subscribeTracker(pin);
@@ -461,10 +454,30 @@ function unlockApp(isNew) {
   document.getElementById('inp-date').value   = today;
   document.getElementById('f-inp-date').value = today;
   setSyncUI('ok','Synced');
-  updateHeightHint();
   updateApiKeyHint();
+  backfillHeightAndBMI();
   renderAll();
 }
+
+// One-time fix: older entries logged before height existed get height=62in (5'2") and BMI calculated
+async function backfillHeightAndBMI() {
+  let changed = false;
+  weightEntries = weightEntries.map(e => {
+    if (e.heightInches == null || e.bmi == null) {
+      changed = true;
+      const h = e.heightInches || currentHeight;
+      return { ...e, heightInches: h, bmi: calcBMI(e.weight, h) };
+    }
+    return e;
+  });
+  if (changed) {
+    try {
+      await saveAll();
+      showToast('Backfilled height for past entries');
+    } catch(e) { /* silent fail, will retry next unlock */ }
+  }
+}
+
 
 function lock() {
   if (unsub) { unsub(); unsub=null; }
@@ -472,7 +485,7 @@ function lock() {
   document.getElementById('lock').style.display='flex';
   document.querySelectorAll('.pin-d').forEach(d=>d.value='');
   clearPinErr();
-  weightEntries=[]; foodEntries=[]; trackerPin=null; currentHeight=null;
+  weightEntries=[]; foodEntries=[]; trackerPin=null;
 }
 window.lock = lock;
 
@@ -483,13 +496,7 @@ async function saveWeightEntry() {
   if (!date)           { showToast('Pick a date first', true); return; }
   if (!weight||weight<=0) { showToast('Enter a valid weight', true); return; }
 
-  const newFt = parseInt(document.getElementById('inp-height-ft').value);
-  const newIn = parseInt(document.getElementById('inp-height-in').value);
-  if (!isNaN(newFt) && newFt > 0) {
-    currentHeight = (newFt * 12) + (isNaN(newIn) ? 0 : newIn);
-  }
-
-  const bmi = (currentHeight && weight) ? calcBMI(weight, currentHeight) : null;
+  const bmi = calcBMI(weight, currentHeight);
 
   const entry = {
     id: Date.now(), date, weight, bmi,
@@ -674,9 +681,8 @@ function renderWeightStats() {
       el.className   = 'sc-sub '+(dd>=0?'pos':'neg');
     }
   } else { sv('s-total','—'); }
-  const h = currentHeight || (weightEntries.length && weightEntries[weightEntries.length-1].heightInches);
-  if (cur && h) {
-    const bmi = calcBMI(cur, h);
+  if (cur) {
+    const bmi = calcBMI(cur, currentHeight);
     const cat = bmiCategory(bmi);
     sv('s-bmi', bmi.toFixed(1));
     const el = document.getElementById('s-bmi-cat');
@@ -889,20 +895,9 @@ function clearWeightInputs() {
   ['weight','chest','waist','hips','thigh','arm','calf','notes'].forEach(k=>{
     const el=document.getElementById('inp-'+k); if(el) el.value='';
   });
-  document.getElementById('inp-height-ft').value='';
-  document.getElementById('inp-height-in').value='';
-  updateHeightHint();
 }
 
-function updateHeightHint() {
-  const hint=document.getElementById('height-hint'); if(!hint) return;
-  if (currentHeight) {
-    const ft=Math.floor(currentHeight/12), ins=currentHeight%12;
-    hint.textContent='Saved: '+ft+'ft '+ins+'in'; hint.style.color='var(--green)';
-  } else {
-    hint.textContent='Enter height to enable BMI'; hint.style.color='var(--text3)';
-  }
-}
+
 
 async function saveApiKey() {
   const key = document.getElementById('usda-key-input').value.trim();
